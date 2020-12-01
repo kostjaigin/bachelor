@@ -67,6 +67,8 @@ RUN cd /opt/spark/data/dependencies/pytorch_DGCNN/lib \
     && make clean \
     && make -j4 \
     && cp -r /opt/spark/data/dependencies/pytorch_DGCNN/lib/build /opt/spark/data/binaries \
+    && zip -r /opt/spark/data/binaries.zip /opt/spark/data/binaries \
+    && yes | rm -r /opt/spark/data/binaries \
     && cd /opt/spark/data/dependencies \
     && zip -r ../dependencies.zip . \
     && yes | rm -r /opt/spark/data/dependencies

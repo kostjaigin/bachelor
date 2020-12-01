@@ -1,0 +1,64 @@
+++ id -u
++ myuid=185
+++ id -g
++ mygid=0
++ set +e
+++ getent passwd 185
++ uidentry=
++ set -e
++ '[' -z '' ']'
++ '[' -w /etc/passwd ']'
++ echo '185:x:185:0:anonymous uid:/opt/spark:/bin/false'
++ SPARK_CLASSPATH=':/opt/spark/jars/*'
++ grep SPARK_JAVA_OPT_
++ sort -t_ -k4 -n
++ env
++ sed 's/[^=]*=\(.*\)/\1/g'
++ readarray -t SPARK_EXECUTOR_JAVA_OPTS
++ '[' -n '' ']'
++ '[' 3 == 2 ']'
++ '[' 3 == 3 ']'
+++ python3 -V
++ pyv3='Python 3.7.3'
++ export PYTHON_VERSION=3.7.3
++ PYTHON_VERSION=3.7.3
++ export PYSPARK_PYTHON=python3
++ PYSPARK_PYTHON=python3
++ export PYSPARK_DRIVER_PYTHON=python3
++ PYSPARK_DRIVER_PYTHON=python3
++ '[' -n '' ']'
++ '[' -z ']'
++ case "$1" in
++ shift 1
++ CMD=("$SPARK_HOME/bin/spark-submit" --conf "spark.driver.bindAddress=$SPARK_DRIVER_BIND_ADDRESS" --deploy-mode client "$@")
++ exec /usr/bin/tini -s -- /opt/spark/bin/spark-submit --conf spark.driver.bindAddress=10.1.0.141 --deploy-mode client --properties-file /opt/spark/conf/spark.properties --class org.apache.spark.deploy.PythonRunner local:///opt/spark/data/ApplyNetwork.py
+20/11/30 15:26:24 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Traceback (most recent call last):
+  File "/opt/spark/data/ApplyNetwork.py", line 18, in <module>
+    from pytorch_DGCNN.predictor import *
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 967, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 668, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 638, in _load_backward_compatible
+  File "/opt/spark/data/dependencies.zip/pytorch_DGCNN/predictor.py", line 2, in <module>
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 967, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 668, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 638, in _load_backward_compatible
+  File "/opt/spark/data/dependencies.zip/pytorch_DGCNN/main.py", line 13, in <module>
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 967, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 668, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 638, in _load_backward_compatible
+  File "/opt/spark/data/dependencies.zip/pytorch_DGCNN/DGCNN_embedding.py", line 16, in <module>
+  File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 967, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 668, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 638, in _load_backward_compatible
+  File "/opt/spark/data/dependencies.zip/pytorch_DGCNN/lib/gnn_lib.py", line 91, in <module>
+  File "/opt/spark/python/lib/pyspark.zip/pyspark/files.py", line 45, in get
+  File "/opt/spark/python/lib/pyspark.zip/pyspark/files.py", line 58, in getRootDirectory
+AttributeError: 'NoneType' object has no attribute '_jvm'
+log4j:WARN No appenders could be found for logger (org.apache.spark.util.ShutdownHookManager).
+log4j:WARN Please initialize the log4j system properly.
+log4j:WARN See http://logging.apache.org/log4j/1.2/faq.html#noconfig for more info.

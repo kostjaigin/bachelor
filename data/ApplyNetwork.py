@@ -48,9 +48,9 @@ def main():
 	assert os.path.exists(model) 
 	sc.addFile(model)
 
-	build = os.path.join(datafolder, "binaries/build")
+	build = os.path.join(datafolder, "binaries.zip")
 	assert os.path.exists(build)
-	sc.addFile()
+	sc.addFile(build)
 
 	# read graphs from pickle file:
 	graphs = []
