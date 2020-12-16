@@ -4,6 +4,8 @@ import pickle
 import torch
 import numpy as np
 import os
+
+import time
 from pytorch_DGCNN.Logger import getlogger
 
 class Predictor():
@@ -46,15 +48,7 @@ class Predictor():
 		right = predictions[:, 0]
 		test_idx_and_pred = np.array([left, mid, right]).T
 		
-		result = '-'*10
-		result += "RETURNING PREDICTION VALUES:"
-		result += np.array2string(test_idx_and_pred)
-		result += '-'*10
-		logger = getlogger('Node '+str(os.getpid()))
-		logger.info(result)
-
-		# np.savetxt(file_route, test_idx_and_pred, fmt=['%d', '%d', '%1.2f'])
-
-		# print('Predictions for are saved in {}'.format(file_route))
+		# just to make sure predictions match
+		return test_idx_and_pred
 
 

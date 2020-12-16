@@ -48,9 +48,23 @@ def main():
 	assert os.path.exists(model) 
 	sc.addFile(model)
 
-	build = os.path.join(datafolder, "binaries.zip")
-	assert os.path.exists(build)
-	sc.addFile(build)
+	build = os.path.join(datafolder, "build")
+	build_paths = [\
+		os.path.join(build, "dll/libgnn.d"),\
+		os.path.join(build, "dll/libgnn.so"),\
+		os.path.join(build, "lib/config.d"),\
+		os.path.join(build, "lib/config.o"),\
+		os.path.join(build, "lib/graph_struct.d"),\
+		os.path.join(build, "lib/graph_struct.o"),\
+		os.path.join(build, "lib/msg_pass.d"),\
+		os.path.join(build, "lib/msg_pass.o")\
+	]
+
+	for build_path in build_paths:
+		assert os.path.exists(build_path)
+		sc.addFile(build_path)
+
+	logger.info("Build paths attached...")
 
 	# read graphs from pickle file:
 	graphs = []

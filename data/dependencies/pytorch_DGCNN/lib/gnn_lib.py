@@ -4,16 +4,13 @@ import os
 import sys
 import torch
 import pdb
-from pytorch_DGCNN.Logger import getlogger
 from pyspark import SparkFiles # access submited files
 
 class _gnn_lib(object):
 
     def __init__(self, args):
 
-        dir_path = SparkFiles.get("binaries.zip")
-        dll_path = os.path.join(dir_path, 'build/dll/libgnn.so')
-        # dir_path = os.path.dirname(os.path.realpath(__file__))
+        dll_path = SparkFiles.get("libgnn.so")
         self.lib = ctypes.CDLL(dll_path)
 
         self.lib.GetGraphStruct.restype = ctypes.c_void_p
@@ -87,22 +84,9 @@ class _gnn_lib(object):
         subg_sp = torch.sparse.FloatTensor(subg_idxes, subg_vals, torch.Size([len(graph_list), total_num_nodes]))
         return n2n_sp, e2n_sp, subg_sp
 
-# dll_path = '%s/build/dll/libgnn.so' % os.path.dirname(os.path.realpath(__file__))
-dll_path = os.path.join(SparkFiles.get("binaries.zip"), 'build/dll/libgnn.so')
-if os.path.exists(dll_path):
-    logger = getlogger('Node '+str(os.getpid()))
-    logger.info("-"*10)
-    logger.info("gnn lib path DOES exist")
-    logger.info("sys argv:")
-    logger.info(sys.argv)
-    logger.info("-"*10)
-    GNNLIB = _gnn_lib(sys.argv)
-else:
-    logger = getlogger('Node '+str(os.getpid()))
-    logger.info("-"*10)
-    logger.info("DLL_PATH: " + dll_path)
-    logger.info("gnn lib path DOES NOT exist")
-    logger.info("sys argv:")
-    logger.info(sys.argv)
-    logger.info("-"*10)
-    GNNLIB = None
+def GNNLIB() -> _gnn_lib:
+    dll_path = SparkFiles.get("libgnn.so")
+    if os.path.exists(dll_path):
+        return _gnn_lib(sys.argv)
+    else:
+        return None

@@ -47,7 +47,7 @@ RUN set -ex && \
 # install required python packages
 RUN apt-get update && \
     apt install -y python3 python3-pip && \
-    pip3 install --upgrade pip torch networkx numpy cloudpickle tqdm sklearn pandas scipy
+    pip3 install --upgrade pip torch networkx numpy cloudpickle tqdm sklearn pandas scipy py2neo
 
 COPY jars /opt/spark/jars
 COPY bin /opt/spark/bin
@@ -66,9 +66,7 @@ RUN chmod g+w /opt/spark/work-dir
 RUN cd /opt/spark/data/dependencies/pytorch_DGCNN/lib \
     && make clean \
     && make -j4 \
-    && cp -r /opt/spark/data/dependencies/pytorch_DGCNN/lib/build /opt/spark/data/binaries \
-    && zip -r /opt/spark/data/binaries.zip /opt/spark/data/binaries \
-    && yes | rm -r /opt/spark/data/binaries \
+    && cp -r /opt/spark/data/dependencies/pytorch_DGCNN/lib/build /opt/spark/data \
     && cd /opt/spark/data/dependencies \
     && zip -r ../dependencies.zip . \
     && yes | rm -r /opt/spark/data/dependencies
