@@ -19,6 +19,7 @@ import scipy.sparse as ssp
 import networkx as nx
 import pickle as pkl
 import numpy as np
+import time
 
 '''
 ██╗░░░██╗████████╗██╗██╗░░░░░░██████╗
@@ -45,31 +46,39 @@ def links2subgraphs(batch, hop):
 	pickled = pkl.dumps((graphs, batch_poses))
 	return pickled
 
-# applying apoc subgraphAll
+# applying apoc subgraph procedure
 def link2subgraph(graph, pair, hop):
-	# extracts subgraphs for given links
 	src, dst = pair[0], pair[1]
 	query = """
-		MATCH (n:Node {id: toInteger(%d)})
+		MATCH (n:Node)
+		WHERE n.id = %d or n.id = %d
 		WITH n
-		call apoc.path.subgraphAll(n, {relationshipFilter:'CONNECTION>',maxLevel:%d}) YIELD nodes,relationships
-		return nodes,relationships
-	"""
-	# nodes specific queries
-	query_src = query % (src, hop)
-	query_dst = query % (dst, hop)
-	results_src = list(graph.run(query_src))
-	results_dst = list(graph.run(query_dst))
-	nodes = set(results_src[0]['nodes'] + results_dst[0]['nodes'])
-	nodes = [int(node['id']) for node in nodes]
-	edges = set(results_src[0]['relationships'] + results_dst[0]['relationships'])
-	edges = [(int(edge.nodes[0]['id']), int(edge.nodes[1]['id'])) for edge in edges]
+		CALL apoc.path.subgraphNodes(n, {maxLevel:%d}) YIELD node
+		WITH DISTINCT node
+		WITH collect(node) as nds
+		MATCH (src:Node)
+		MATCH (dst:Node)
+		WHERE src IN nds AND dst in nds
+		MATCH (src)-[e:CONNECTION]->(dst)
+		RETURN collect(e) AS edgs, nds
+	""" % (src, dst, hop)
+	results = list(graph.run(query))
+	nodes = [int(node['id']) for node in results[0]['nds']]
+	# put src and dst on top
+	nodes.remove(src)
+	nodes.remove(dst)
+	nodes = [src, dst] + list(nodes)
+	# given labeling function functions with indeces, not ids
+	nodes_idx = list(range(0, len(nodes))) 
+	# edges need to be constructed between known indeces
+	nodes_map = dict(zip(nodes, nodes_idx)) # to access nodes index w. id
+	edges = [(nodes_map[int(edge.nodes[0]['id'])], nodes_map[int(edge.nodes[1]['id'])]) for edge in results[0]['edgs']]
 	# construct networkx graph from given nodes and edges:
 	g = nx.Graph()
-	g.add_nodes_from(nodes)
+	g.add_nodes_from(nodes_idx)
 	g.add_edges_from(edges)
 	# construct sparse adjacency matrix for use of SEAL functions
-	subgraph = nx.to_scipy_sparse_matrix(g, weight=None, format='csr')
+	subgraph = nx.to_scipy_sparse_matrix(g, weight=None, format='csc', dtype=np.float64)
 	# labels nodes in subgraphs
 	labels = node_label(subgraph).tolist()
 	# features TODO
@@ -77,20 +86,10 @@ def link2subgraph(graph, pair, hop):
 	# TODO check whether it is corret. Perhaps we should pass different values here.
 	g_label = 1
 	# remove edge between target nodes
-	if g.has_edge(src, dst):
-		g.remove_edge(src, dst)
-	# # max_n_label TODO what do we do with this?
-	# max_n_label = {'value': 0}
-	# max_n_label['value'] = max(max(labels), max_n_label['value'])
-	# creates GNNGraphs 
+	if g.has_edge(0, 1):
+		g.remove_edge(0, 1)
 	gnn_graph = GNNGraph(g, g_label, labels)
 	return gnn_graph
-
-# todo applying standarized quiries for h=1 and h=2
-def link2subgraphs_noapoc(pair, hop):
-	graph = Graph(service_ip)
-	src, dst = [pair[0], pair[1]]
-	# todo
 
 def node_label(subgraph):
     # an implementation of the proposed double-radius node labeling (DRNL)
@@ -122,14 +121,14 @@ def apply_network(dataset:str, serialized):
 ███████║██████╔╝██████╔╝
 ██╔══██║██╔═══╝░██╔═══╝░
 ██║░░██║██║░░░░░██║░░░░░
-╚═╝░░╚═╝╚═╝░░░░░╚═╝░░░░░
+╚═╝░░╚═╝╚═╝░░░░░╚═╝░░░░░ 
 '''
 
 def main():
 	# TODO read configuration settings from sys.argv
 	dataset = "USAir"
 	batch_inprior = True
-	hop = 2
+	hop = 1 # try with 2
 	batch_size = 50
 
 	# create Spark context with Spark configuration
@@ -189,6 +188,8 @@ def main():
 
 	prediction_data = positives + negatives
 	
+	logger.info("Data sampled...")
+
 	# IN-PRIOR batch solution:
 	batched_prediction_data = []
 	batch_data = []
@@ -200,21 +201,33 @@ def main():
 
 	prediction_rdd = sc.parallelize(batched_prediction_data)
 
+	logger.info("Data parallelized...")
+
 	# extract subgraphs:
 	prediction_subgraphs = prediction_rdd.map(lambda batch: links2subgraphs(batch, hop))
 
+	start = time.time()
+	subgraphs = prediction_subgraphs.collect()
+	end = time.time()
+	logger.info("Subgraph extraction with collect took " + str(end-start) + " seconds.")
+
+	subgraphs_prediction = sc.parallelize(subgraphs)
 	# post-facto batch solution todo:
 
-	# perform prediction: // todo change foreach to map
-	predictions = prediction_subgraphs.map(lambda graph: apply_network(dataset, graph))
+	# perform prediction:
+	predictions = subgraphs_prediction.map(lambda graph: apply_network(dataset, graph)) # was prediction_subgraphs
 
 	# extract results with .collect() method:
+	start = time.time()
 	results = predictions.collect()
-	np.savetxt("/opt/spark/work-dir/results", results, fmt=['%d', '%d', '%1.2f'])
+	end = time.time()
+	logger.info("Prediction on subgraphs took " + str(end-start) + " seconds.")
 
-	logger.info("Results calculated")
+	for i, record in enumerate(results):
+		np.savetxt("/opt/spark/work-dir/results_batch_"+str(i), record, fmt=['%d', '%d', '%1.2f'])
 
-	# some time to take a look at the results:
+	logger.info("Results calculation complete!")
+
 	time.sleep(60*10)
 
 if __name__ == "__main__":
