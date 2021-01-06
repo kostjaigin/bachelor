@@ -173,13 +173,13 @@ def main():
 	logger.info("Build paths attached...")
 
 	# read test data files:
-	positives_file = os.path.join(datafolder, "prediction_data", dataset+"_positives.txt") 
+	positives_file = os.path.join(datafolder, "prediction_data", dataset+"_positives_test.txt") 
 	positives = []
 	with open(positives_file, 'r') as f:
 		for line in f:
 			pair = line.strip().split(" ")
 			positives.append((int(pair[0]), int(pair[1])))
-	negatives_file = os.path.join(datafolder, "prediction_data", dataset+"_negatives.txt") 
+	negatives_file = os.path.join(datafolder, "prediction_data", dataset+"_negatives_test.txt") 
 	negatives = []
 	with open(negatives_file, 'r') as f:
 		for line in f:
