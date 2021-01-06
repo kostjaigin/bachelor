@@ -8,9 +8,23 @@ Having a kubernetes cluster up and running, connect to the master machine and do
 #### Neo4j Cluster Initialization
 
 1. Make sure your cluster doesn't run Neo4j yet: ```helm uninstall neo4j-helm``` *(it is okay if it outputs an error)*
-2. Clone this repository to your working directory: ```git clone https://github.com/kostjaigin/bachelor_utils```
+2. Clone this repository to your working directory: ```git clone https://github.com/kostjaigin/bachelor.git```
 3. Clone Neo4j Helm repository to your working directory: ```git clone https://github.com/neo4j-contrib/neo4j-helm.git```
-4. Clone Helm configuration file for Neo4j from this repository: ```cp ./bachelor_utils/neo4j_setups/values.yaml ./neo4j-helm/values.yaml```
+4. Go to the Helm Configuration file and change following lines as demonstrated below:
+    - ```acceptLicenseAgreement: "yes"```
+    - ```authEnabled: false``` to disable authentication requirement
+    - Find the section *core* and inside of it change:
+      ```
+      persistentVolume:
+        ## whether or not persistence is enabled
+        ##
+        enabled: false
+      ```
+    - Do the same for the section *readReplica*:
+      ```
+      persistentVolume:
+        enabled: true
+      ```
 5. Install/start the Neo4j cluster: ```helm install neo4j-helm -f ./neo4j-helm/values.yaml neo4j-helm```
 6. Now we need to wait until pods are set up and are running. We can check the current state with ```kubectl get pods``` command.
 
