@@ -52,12 +52,12 @@ Now we can load data to the database.
 2. First make sure the database is empty by typing: ```match (n) detach delete(n);```
 3. Upload nodes:
 ```cypher
-LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/kostjaigin/bachelor_utils/master/data/USAir_nodes.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/kostjaigin/bachelor/master/utils/data/USAir_nodes.csv' AS row
 CREATE (n:Node {id: toInteger(row.id)});
 ```
 4. Upload edges:
 ```cypher
-LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/kostjaigin/bachelor_utils/master/data/USAir_edges.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/kostjaigin/bachelor/master/utils/data/USAir_edges.csv' AS row
 MATCH (src:Node {id: toInteger(row.src_id)}),(dst:Node {id: toInteger(row.dst_id)})
 CREATE (src)-[:CONNECTION]->(dst);
 ```
