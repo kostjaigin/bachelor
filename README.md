@@ -62,3 +62,20 @@ MATCH (src:Node {id: toInteger(row.src_id)}),(dst:Node {id: toInteger(row.dst_id
 CREATE (src)-[:CONNECTION]->(dst);
 ```
 
+#### Build and execute the project
+
+The main application logic can be found in [data/App.py](https://github.com/kostjaigin/bachelor/blob/master/data/App.py). 
+
+1. Set enviromental variable *$SPARK_HOME* to the directory of this repository
+2. Do ```$SPARK_HOME/bin/docker-image-tool.sh -r kostjaigin -t v3.0.1-Ugin_0.0.1 -p $SPARK_HOME/kubernetes/dockerfiles/spark/bindings/python/Dockerfile build``` to build project
+3. Application is then submitted using Spark K8S module:
+```
+$SPARK_HOME/bin/spark-submit \
+  --master k8s://https://kubernetes.docker.internal:6443 \
+  --deploy-mode cluster \
+  --conf spark.executor.instances=5 \
+  --conf spark.kubernetes.container.image=kostjaigin/spark-py:v3.0.1-Ugin_0.0.1 \
+  --files "local:///opt/spark/data/models/USAir_hyper.pkl","local:///opt/spark/data/models/USAir_model.pth","local:///opt/spark/data/build/dll/libgnn.d","local:///opt/spark/data/build/dll/libgnn.so","local:///opt/spark/data/build/lib/config.d","local:///opt/spark/data/build/lib/config.o","local:///opt/spark/data/build/lib/graph_struct.d","local:///opt/spark/data/build/lib/graph_struct.o","local:///opt/spark/data/build/lib/msg_pass.d","local:///opt/spark/data/build/lib/msg_pass.o" \
+  --py-files "local:///opt/spark/data/dependencies.zip" \
+  local:///opt/spark/data/App.py
+```
