@@ -63,10 +63,9 @@ CREATE (src)-[:CONNECTION]->(dst);
 ```
 
 ## Build and execute the project
+The main application logic can be found in [data/App.py](https://github.com/kostjaigin/bachelor/blob/master/data/App.py).
 
-#### Using standard spark-submit approach described [here](http://spark.apache.org/docs/latest/running-on-kubernetes.html)
-
-The main application logic can be found in [data/App.py](https://github.com/kostjaigin/bachelor/blob/master/data/App.py). 
+#### Using standard spark-submit approach described [here](http://spark.apache.org/docs/latest/running-on-kubernetes.html) 
 
 1. Set enviromental variable *$SPARK_HOME* to the directory of this repository
 2. Do ```$SPARK_HOME/bin/docker-image-tool.sh -r kostjaigin -t v3.0.1-Ugin_0.0.1 -p $SPARK_HOME/kubernetes/dockerfiles/spark/bindings/python/Dockerfile build``` to build project
