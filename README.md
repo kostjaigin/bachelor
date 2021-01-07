@@ -62,7 +62,9 @@ MATCH (src:Node {id: toInteger(row.src_id)}),(dst:Node {id: toInteger(row.dst_id
 CREATE (src)-[:CONNECTION]->(dst);
 ```
 
-#### Build and execute the project
+## Build and execute the project
+
+#### Using standard spark-submit approach described [here](http://spark.apache.org/docs/latest/running-on-kubernetes.html)
 
 The main application logic can be found in [data/App.py](https://github.com/kostjaigin/bachelor/blob/master/data/App.py). 
 
@@ -79,3 +81,5 @@ $SPARK_HOME/bin/spark-submit \
   --py-files "local:///opt/spark/data/dependencies.zip" \
   local:///opt/spark/data/App.py
 ```
+
+#### Using [Spark K8S Operator](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator)
