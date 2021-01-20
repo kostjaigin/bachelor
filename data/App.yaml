@@ -1,0 +1,39 @@
+# configuration description: https://bit.ly/3qEmtUc
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: app
+  namespace: konstantin
+spec:
+  type: Python
+  mode: cluster
+  image: docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.0.1
+  mainApplicationClass: "local:///opt/spark/data/App.py"
+
+  sparkConf:
+    "spark.ui.port": "4040"
+  
+  executor:
+    instances: 4
+
+  driver:
+    serviceAccount: konstantin
+
+  deps:
+    py-files: 
+      - local:///opt/spark/data/dependencies.zip
+    files: 
+      - local:///opt/spark/data/build/dll/libgnn.d
+      - local:///opt/spark/data/build/dll/libgnn.so
+      - local:///opt/spark/data/build/lib/config.d
+      - local:///opt/spark/data/build/lib/config.o
+      - local:///opt/spark/data/build/lib/graph_struct.d
+      - local:///opt/spark/data/build/lib/graph_struct.o
+      - local:///opt/spark/data/build/lib/msg_pass.d
+      - local:///opt/spark/data/build/lib/msg_pass.o
+      - local:///opt/spark/data/models/USAir_hyper.pkl
+      - local:///opt/spark/data/models/USAir_model.pth
+      - local:///opt/spark/data/prediction_data/USAir.mat
+      - local:///opt/spark/data/models/PB_hyper.pkl
+      - local:///opt/spark/data/models/PB_model.pth
+      - local:///opt/spark/data/prediction_data/PB.mat

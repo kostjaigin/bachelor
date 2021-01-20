@@ -24,6 +24,11 @@ from pyspark import SparkFiles # access submited files
 
 service_ip = "bolt://neo4j-helm-neo4j:7687"
 
+'''
+	performs subgraph extraction for given batch
+	returns pickled subgraphs together with list of positions in batch
+		and list of execution times for each pair in a batch
+'''
 def batches2subgraphs(batch, hop:int, db:bool, dataset:str = None):
 	if db: 
 		# use db for graph extraction
