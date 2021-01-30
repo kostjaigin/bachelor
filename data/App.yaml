@@ -2,14 +2,17 @@
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
-  name: app
-  namespace: konstantin
+  name: apps
+  namespace: konstantin # remote for deployment
+  # namespace: default # local for testing
 spec:
   type: Python
   mode: cluster
-  image: docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.0.1
-  mainApplicationClass: "local:///opt/spark/data/App.py"
+  image: docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.0.3 # remote for deployment
+  # image: kostjaigin/spark-py:v3.0.1-Ugin_0.0.2 # local for testing
+  mainApplicationFile: "local:///opt/spark/data/App.py"
 
+  sparkVersion: "3.0.1"
   sparkConf:
     "spark.ui.port": "4040"
   
@@ -18,9 +21,10 @@ spec:
 
   driver:
     serviceAccount: konstantin
+    # serviceAccount: default # local for testing
 
   deps:
-    py-files: 
+    pyFiles: 
       - local:///opt/spark/data/dependencies.zip
     files: 
       - local:///opt/spark/data/build/dll/libgnn.d
@@ -37,3 +41,9 @@ spec:
       - local:///opt/spark/data/models/PB_hyper.pkl
       - local:///opt/spark/data/models/PB_model.pth
       - local:///opt/spark/data/prediction_data/PB.mat
+      - local:///opt/spark/data/models/facebook_hyper.pkl
+      - local:///opt/spark/data/models/facebook_model.pth
+      - local:///opt/spark/data/prediction_data/facebook.mat
+      - local:///opt/spark/data/models/arxiv_hyper.pkl
+      - local:///opt/spark/data/models/arxiv_model.pth
+      - local:///opt/spark/data/prediction_data/arxiv.mat

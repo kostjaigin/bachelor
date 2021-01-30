@@ -69,7 +69,8 @@ RUN cd /opt/spark/data/dependencies/pytorch_DGCNN/lib \
     && cp -r /opt/spark/data/dependencies/pytorch_DGCNN/lib/build /opt/spark/data \
     && cd /opt/spark/data/dependencies \
     && zip -r ../dependencies.zip . \
-    && yes | rm -r /opt/spark/data/dependencies
+    && yes | rm -r /opt/spark/data/dependencies \
+    && chmod -R 777 /opt/spark/work-dir
 # zip DEPENDENCIES w. pytorch_DGCNN in data folder to attach it to spark submit later
 # important: commands get executed after make (w. c++ libraries are compiled)
 

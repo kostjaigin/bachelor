@@ -7,6 +7,7 @@
 ░╚═════╝░░░░╚═╝░░░╚═╝╚══════╝╚═════╝░
 '''
 import sys, os
+import pickle as pkl
 datafolder = "/opt/spark/data"
 sys.path.append(datafolder)
 from pytorch_DGCNN.Logger import getlogger
@@ -21,6 +22,7 @@ class application_args:
 	batch_inprior: bool = True
 	hop: int = 2
 	batch_size: int = 50
+	results_path: str = "/opt/spark/work-dir/my_volume"
 
 	def set_attr(self, attr, value: str):
 		assert hasattr(self, attr)
@@ -40,6 +42,67 @@ class application_args:
 		msg += f"hop: {str(self.hop)}\n"
 		msg += f"batch_size: {str(self.batch_size)}\n"
 		return msg
+
+'''
+	TODO Stores passed files to mounted directory
+'''
+def save_locally(file):
+	print("hello")
+
+'''
+	saves given subgraphs (pickled GNNGraphs and pairs lists) and extraction times
+	locally (inside of pod/container) for further extraction. 
+	@params:
+		+ pickled_list: list of pickeld GNNGraphs and pairs of positions
+		+ times_list: list of lists of times for each batch (len ~= data/args.batch_size)
+		+ args: application arguments (for naming)
+'''
+def save_subgraphs_times_batches(pickled_list, times_list, args: application_args):
+	graphs = [] 
+	pairs = []  
+	times = []
+	for i, pickled in enumerate(pickled_list):
+		# batch_data contains n=~50 graphs, data_pos - 2 lists of paired nodes
+		batch_data, data_pos = pkl.loads(pickled)
+		# batch_times contains a list of times for data_pos of size n
+		batch_times = times_list[i]
+		assert len(batch_times) == len(batch_data) == len(data_pos[0]) == len(data_pos[1])
+		for j, graph in enumerate(batch_data):
+			graphs.append(graph)
+			pairs.append((data_pos[0][j], data_pos[1][j]))
+			times.append(batch_times[j])
+	save_subgraphs_times(pairs, graphs, times, args)
+
+'''
+	saves given subgraphs list with it's times and corresponding pairs
+	locally (inside of pod/container) for further extraction.
+	@params:
+		+ pairs_list: list of extracted pairs
+		+ times_list: list of times corresponding to the pairs
+'''
+def save_subgraphs_times(pairs_list, subgraphs_list, times_list, args: application_args):
+	
+	path = args.results_path
+
+	times_path = os.path.join(path, "times")
+	pairs_path = os.path.join(path, "pairs")
+
+	assert len(pairs_list) == len(subgraphs_list) == len(times_list)
+
+	for i, graph in enumerate(subgraphs_list):
+		graphs_path = os.path.join(path, "graph_"+str(i))
+		with open(graphs_path, 'wb') as f:
+			pickled = pkl.dumps(graph)
+			f.write(pickled)
+	with open(times_path, 'w') as f:
+		for t in times_list:
+			f.write(str(t))
+			f.write('\n')
+	with open(pairs_path, 'w') as f:
+		for pair in pairs_list:
+			f.write(str(pair))
+			f.write('\n')
+
 
 '''
 	parses given list of string arguments to applicatoin_args instance
@@ -72,4 +135,5 @@ def print_usage():
 	msg += "--batch_inprior choose whether to batch data prior to subgraph calcultation, defaults to true\n"
 	msg += "--hop choose hop number, defaults to 2\n"
 	msg += "--batch_size choose batch size of data, defaults to 50\n"
+	msg += "--results_path defaults to /opt/spark/work-dir/calculation_results"
 	logger.info(msg)

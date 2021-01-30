@@ -19,7 +19,7 @@ sys.path.append(datafolder)
 from pytorch_DGCNN.predictor import *
 from pytorch_DGCNN.util import GNNGraph
 from pytorch_DGCNN.Logger import getlogger
-from utils_app import application_args, parse_args, print_usage
+from utils_app import application_args, parse_args, print_usage, save_subgraphs_times_batches, save_subgraphs_times
 from utils_extraction import *
 
 import pickle as pkl
@@ -135,6 +135,8 @@ def main(args):
 		subgraphs, times = map(list, zip(*subgraphs_times))
 		subgraph_extraction_whole = end-start
 		subgraph_extraction_times = times 
+		# save extracted subgraphs and times
+		save_subgraphs_times_batches(subgraphs, times, args)
 	else:
 		# parallelize all pairs
 		prediction_data_rdd = sc.parallelize(prediction_data)
@@ -147,6 +149,8 @@ def main(args):
 		pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
 		subgraph_extraction_whole = end-start
 		subgraph_extraction_times = times
+		# save extracted subgraphs and times
+		save_subgraphs_times(pairs, subgraphs, times, args)
 		# split into batches (partitions)
 		# form batches (lists of pairs of len ~batch size)
 		batched_prediction_data = []
@@ -186,7 +190,9 @@ def main(args):
 
 	logger.info("Results calculation complete!")
 
-	time.sleep(60*10)
+	# TODO trigger data saving to the local machine
+
+	time.sleep(2*60*60) # wait for two hours to extract results
 
 if __name__ == "__main__":
 	args = sys.argv
