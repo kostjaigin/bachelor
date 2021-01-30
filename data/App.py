@@ -1,120 +1,3 @@
-import sys
-
-from pyspark import SparkContext, SparkConf
-from pyspark.sql import SparkSession
-from pyspark import SparkFiles # access submited files
-
-from py2neo import Graph
-
-service_ip = "bolt://neo4j-helm-neo4j:7687"
-datafolder = "/opt/spark/data"
-
-sys.path.append(datafolder)
-# import pytorch_DGCNN from data folder of spark distribution
-from pytorch_DGCNN.predictor import *
-from pytorch_DGCNN.util import GNNGraph
-from pytorch_DGCNN.Logger import getlogger
-import scipy.sparse as ssp
-
-import networkx as nx
-import pickle as pkl
-import numpy as np
-import time
-
-'''
-██╗░░░██╗████████╗██╗██╗░░░░░░██████╗
-██║░░░██║╚══██╔══╝██║██║░░░░░██╔════╝
-██║░░░██║░░░██║░░░██║██║░░░░░╚█████╗░
-██║░░░██║░░░██║░░░██║██║░░░░░░╚═══██╗
-╚██████╔╝░░░██║░░░██║███████╗██████╔╝
-░╚═════╝░░░░╚═╝░░░╚═╝╚══════╝╚═════╝░
-'''
-
-def links2subgraphs(batch, hop):
-	# connect service
-	graph = Graph(service_ip)
-	graphs = []
-	batch_poses = [[], []]
-	for pair in batch:
-		gnn_graph = link2subgraph(graph, pair, hop)
-		graphs.append(gnn_graph)
-		batch_poses[0].append(pair[0])
-		batch_poses[1].append(pair[1])
-	logger = getlogger('Node '+str(os.getpid()))
-	logger.info("Worker done extracting batches...")
-	# serialized graphs and test positions
-	pickled = pkl.dumps((graphs, batch_poses))
-	return pickled
-
-# applying apoc subgraph procedure
-def link2subgraph(graph, pair, hop):
-	src, dst = pair[0], pair[1]
-	query = """
-		MATCH (n:Node)
-		WHERE n.id = %d or n.id = %d
-		WITH n
-		CALL apoc.path.subgraphNodes(n, {maxLevel:%d}) YIELD node
-		WITH DISTINCT node
-		WITH collect(node) as nds
-		MATCH (src:Node)
-		MATCH (dst:Node)
-		WHERE src IN nds AND dst in nds
-		MATCH (src)-[e:CONNECTION]->(dst)
-		RETURN collect(e) AS edgs, nds
-	""" % (src, dst, hop)
-	results = list(graph.run(query))
-	nodes = [int(node['id']) for node in results[0]['nds']]
-	# put src and dst on top
-	nodes.remove(src)
-	nodes.remove(dst)
-	nodes = [src, dst] + list(nodes)
-	# given labeling function functions with indeces, not ids
-	nodes_idx = list(range(0, len(nodes))) 
-	# edges need to be constructed between known indeces
-	nodes_map = dict(zip(nodes, nodes_idx)) # to access nodes index w. id
-	edges = [(nodes_map[int(edge.nodes[0]['id'])], nodes_map[int(edge.nodes[1]['id'])]) for edge in results[0]['edgs']]
-	# construct networkx graph from given nodes and edges:
-	g = nx.Graph()
-	g.add_nodes_from(nodes_idx)
-	g.add_edges_from(edges)
-	# construct sparse adjacency matrix for use of SEAL functions
-	subgraph = nx.to_scipy_sparse_matrix(g, weight=None, format='csc', dtype=np.float64)
-	# labels nodes in subgraphs
-	labels = node_label(subgraph).tolist()
-	# features TODO
-	features = None
-	# TODO check whether it is corret. Perhaps we should pass different values here.
-	g_label = 1
-	# remove edge between target nodes
-	if g.has_edge(0, 1):
-		g.remove_edge(0, 1)
-	gnn_graph = GNNGraph(g, g_label, labels)
-	return gnn_graph
-
-def node_label(subgraph):
-    # an implementation of the proposed double-radius node labeling (DRNL)
-    K = subgraph.shape[0]
-    subgraph_wo0 = subgraph[1:, 1:]
-    subgraph_wo1 = subgraph[[0]+list(range(2, K)), :][:, [0]+list(range(2, K))]
-    dist_to_0 = ssp.csgraph.shortest_path(subgraph_wo0, directed=False, unweighted=True)
-    dist_to_0 = dist_to_0[1:, 0]
-    dist_to_1 = ssp.csgraph.shortest_path(subgraph_wo1, directed=False, unweighted=True)
-    dist_to_1 = dist_to_1[1:, 0]
-    d = (dist_to_0 + dist_to_1).astype(int)
-    d_over_2, d_mod_2 = np.divmod(d, 2)
-    labels = 1 + np.minimum(dist_to_0, dist_to_1).astype(int) + d_over_2 * (d_over_2 + d_mod_2 - 1)
-    labels = np.concatenate((np.array([1, 1]), labels))
-    labels[np.isinf(labels)] = 0
-    labels[labels>1e6] = 0  # set inf labels to 0
-    labels[labels<-1e6] = 0  # set -inf labels to 0
-    return labels
-
-def apply_network(dataset:str, serialized):
-	hyperparams_route = SparkFiles.get(f'{dataset}_hyper.pkl')
-	model_route = SparkFiles.get(f'{dataset}_model.pth')
-	predictor = Predictor(hyperparams_route, model_route)
-	return predictor.predict(serialized)
-
 '''
 ░█████╗░██████╗░██████╗░
 ██╔══██╗██╔══██╗██╔══██╗
@@ -123,15 +6,37 @@ def apply_network(dataset:str, serialized):
 ██║░░██║██║░░░░░██║░░░░░
 ╚═╝░░╚═╝╚═╝░░░░░╚═╝░░░░░ 
 '''
+import sys
+from pyspark import SparkContext, SparkConf
+from pyspark.sql import SparkSession
+from pyspark import SparkFiles # access submited files
+from py2neo import Graph
 
-def main():
-	# TODO read configuration settings from sys.argv
-	dataset = "USAir"
-	batch_inprior = True
-	hop = 1 # try with 2
-	batch_size = 50
+datafolder = "/opt/spark/data"
 
-	# create Spark context with Spark configuration
+sys.path.append(datafolder)
+# import pytorch_DGCNN from data folder of spark distribution
+from pytorch_DGCNN.predictor import *
+from pytorch_DGCNN.util import GNNGraph
+from pytorch_DGCNN.Logger import getlogger
+from utils_app import application_args, parse_args, print_usage, save_subgraphs_times_batches, save_subgraphs_times
+from utils_extraction import *
+
+import pickle as pkl
+import numpy as np
+import time
+
+def apply_network(dataset:str, serialized):
+	hyperparams_route = SparkFiles.get(f'{dataset}_hyper.pkl')
+	model_route = SparkFiles.get(f'{dataset}_model.pth')
+	predictor = Predictor(hyperparams_route, model_route)
+	return predictor.predict(serialized)
+
+def main(args):
+	'''
+	█ █▄░█ █ ▀█▀ █ ▄▀█ █░░ █ █▀ ▄▀█ ▀█▀ █ █▀█ █▄░█
+	█ █░▀█ █ ░█░ █ █▀█ █▄▄ █ ▄█ █▀█ ░█░ █ █▄█ █░▀█
+	'''
 	spark = SparkSession\
 			.builder\
 			.appName("UginDGCNN")\
@@ -141,18 +46,28 @@ def main():
 	logger = getlogger('Node '+str(os.getpid()))
 	logger.info("Spark Context established, going though app logic...")
 
-	# zipped package
+	logger.info("Application params:\n" + args.print_attributes())
+
+	'''
+	█▀▄ █▀▀ █▀█ █▀▀ █▄░█ █▀▄ █▀▀ █▄░█ █▀▀ █ █▀▀ █▀
+	█▄▀ ██▄ █▀▀ ██▄ █░▀█ █▄▀ ██▄ █░▀█ █▄▄ █ ██▄ ▄█
+	'''
+
 	zipped_pkg = os.path.join(datafolder, "dependencies.zip")
 	assert os.path.exists(zipped_pkg)
 	sc.addPyFile(zipped_pkg)
 
-	hyperparams = os.path.join(datafolder, f"models/{dataset}_hyper.pkl")
+	hyperparams = os.path.join(datafolder, f"models/{args.dataset}_hyper.pkl")
 	assert os.path.exists(hyperparams) 
 	sc.addFile(hyperparams)
 
-	model = os.path.join(datafolder, f"models/{dataset}_model.pth")
+	model = os.path.join(datafolder, f"models/{args.dataset}_model.pth")
 	assert os.path.exists(model) 
 	sc.addFile(model)
+
+	datafile = os.path.join(datafolder, f'prediction_data/{args.dataset}.mat')
+	assert os.path.exists(datafile)
+	sc.addFile(datafile)
 
 	build = os.path.join(datafolder, "build")
 	build_paths = [\
@@ -172,14 +87,17 @@ def main():
 
 	logger.info("Build paths attached...")
 
-	# read test data files:
-	positives_file = os.path.join(datafolder, "prediction_data", dataset+"_positives_test.txt") 
+	'''
+	▀█▀ █▀▀ █▀ ▀█▀   █▀▄ ▄▀█ ▀█▀ ▄▀█
+	░█░ ██▄ ▄█ ░█░   █▄▀ █▀█ ░█░ █▀█
+	'''
+	positives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_positives_test.txt") 
 	positives = []
 	with open(positives_file, 'r') as f:
 		for line in f:
 			pair = line.strip().split(" ")
 			positives.append((int(pair[0]), int(pair[1])))
-	negatives_file = os.path.join(datafolder, "prediction_data", dataset+"_negatives_test.txt") 
+	negatives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_negatives_test.txt") 
 	negatives = []
 	with open(negatives_file, 'r') as f:
 		for line in f:
@@ -190,32 +108,76 @@ def main():
 	
 	logger.info("Data sampled...")
 
-	# IN-PRIOR batch solution:
-	batched_prediction_data = []
-	batch_data = []
-	for i, pair in enumerate(prediction_data):
-		batch_data.append(pair)
-		if len(batch_data) == batch_size or i == (len(prediction_data)-1):
-			batched_prediction_data.append(batch_data)
-			batch_data = []
+	'''
+	█▀ █░█ █▄▄ █▀▀ █▀█ ▄▀█ █▀█ █░█   █▀▀ ▀▄▀ ▀█▀ █▀█ ▄▀█ █▀▀ ▀█▀ █ █▀█ █▄░█
+	▄█ █▄█ █▄█ █▄█ █▀▄ █▀█ █▀▀ █▀█   ██▄ █░█ ░█░ █▀▄ █▀█ █▄▄ ░█░ █ █▄█ █░▀█
+	'''
+	subgraph_extraction_whole = 0
+	subgraph_extraction_times = []
+	if args.batch_inprior:
+		# form batches (lists of pairs of len ~batch size)
+		batched_prediction_data = []
+		batch_data = []
+		for i, pair in enumerate(prediction_data):
+			batch_data.append(pair)
+			if len(batch_data) == args.batch_size or i == (len(prediction_data)-1):
+				batched_prediction_data.append(batch_data)
+				batch_data = []
+		# parallelize batches
+		prediction_rdd = sc.parallelize(batched_prediction_data)
+		logger.info("Data parallelized...")
+		# extract subgraphs:
+		prediction_subgraphs = prediction_rdd.map(lambda batch: batches2subgraphs(batch, args.hop, args.db_extraction, args.dataset))
+		start = time.time()
+		subgraphs_times = prediction_subgraphs.collect()
+		end = time.time()
+		# extract subgraphs and times to two different lists
+		subgraphs, times = map(list, zip(*subgraphs_times))
+		subgraph_extraction_whole = end-start
+		subgraph_extraction_times = times 
+		# save extracted subgraphs and times
+		save_subgraphs_times_batches(subgraphs, times, args)
+	else:
+		# parallelize all pairs
+		prediction_data_rdd = sc.parallelize(prediction_data)
+		# extract graphs for all pairs
+		prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(pair, args.hop, args.db_extraction, args.dataset))
+		# --> will contain pairs and corresponding subgraphs
+		start = time.time()
+		pairs_subgraphs_times = prediction_subgraphs_pairs.collect()
+		end = time.time()
+		pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
+		subgraph_extraction_whole = end-start
+		subgraph_extraction_times = times
+		# save extracted subgraphs and times
+		save_subgraphs_times(pairs, subgraphs, times, args)
+		# split into batches (partitions)
+		# form batches (lists of pairs of len ~batch size)
+		batched_prediction_data = []
+		batch_poses = [[], []]
+		graphs = []
+		for i, pair in enumerate(pairs):
+			batch_poses[0].append(pair[0])
+			batch_poses[1].append(pair[1])
+			graphs.append(subgraphs[i])
+			if len(graphs) == args.batch_size or i == (len(prediction_data)-1):
+				batch_data = pkl.dumps((graphs, batch_poses))
+				batched_prediction_data.append(batch_data)
+				graphs = []
+				batch_poses = [[], []]
+		subgraphs = batched_prediction_data
 
-	prediction_rdd = sc.parallelize(batched_prediction_data)
+	logger.info("Subgraph extraction took " + str(subgraph_extraction_whole) + " seconds.")
 
-	logger.info("Data parallelized...")
 
-	# extract subgraphs:
-	prediction_subgraphs = prediction_rdd.map(lambda batch: links2subgraphs(batch, hop))
-
-	start = time.time()
-	subgraphs = prediction_subgraphs.collect()
-	end = time.time()
-	logger.info("Subgraph extraction with collect took " + str(end-start) + " seconds.")
-
+	'''
+	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
+	█▀▀ █▀▄ ██▄ █▄▀ █ █▄▄ ░█░ █ █▄█ █░▀█
+	'''
 	subgraphs_prediction = sc.parallelize(subgraphs)
-	# post-facto batch solution todo:
 
 	# perform prediction:
-	predictions = subgraphs_prediction.map(lambda graph: apply_network(dataset, graph)) # was prediction_subgraphs
+	predictions = subgraphs_prediction.map(lambda graph: apply_network(args.dataset, graph))
 
 	# extract results with .collect() method:
 	start = time.time()
@@ -228,10 +190,18 @@ def main():
 
 	logger.info("Results calculation complete!")
 
-	time.sleep(60*10)
+	# TODO trigger data saving to the local machine
+
+	time.sleep(2*60*60) # wait for two hours to extract results
 
 if __name__ == "__main__":
-	main()
+	args = sys.argv
+	# exclude app name
+	args.pop(0)
+	# adapt arguments
+	args = parse_args(args)
+	# execute 
+	main(args)
 
 
 	
