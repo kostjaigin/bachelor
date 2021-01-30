@@ -82,3 +82,5 @@ $SPARK_HOME/bin/spark-submit \
 ```
 
 #### Using [Spark K8S Operator](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator)
+
+1. ```kubectl apply -f App.yaml``` on initial start
