@@ -19,7 +19,8 @@ sys.path.append(datafolder)
 from pytorch_DGCNN.predictor import *
 from pytorch_DGCNN.util import GNNGraph
 from pytorch_DGCNN.Logger import getlogger
-from utils_app import application_args, parse_args, print_usage, save_subgraphs_times_batches, save_subgraphs_times
+from utils_app import application_args, parse_args, print_usage
+from utils_app import save_subgraphs_times_batches, save_subgraphs_times, save_prediction_results
 from utils_extraction import *
 
 import pickle as pkl
@@ -185,14 +186,9 @@ def main(args):
 	end = time.time()
 	logger.info("Prediction on subgraphs took " + str(end-start) + " seconds.")
 
-	for i, record in enumerate(results):
-		np.savetxt("/opt/spark/work-dir/results_batch_"+str(i), record, fmt=['%d', '%d', '%1.2f'])
+	save_prediction_results(results, end-start, args)	
 
 	logger.info("Results calculation complete!")
-
-	# TODO trigger data saving to the local machine
-
-	time.sleep(2*60*60) # wait for two hours to extract results
 
 if __name__ == "__main__":
 	args = sys.argv

@@ -8,6 +8,7 @@
 '''
 import sys, os
 import pickle as pkl
+import numpy as np
 datafolder = "/opt/spark/data"
 sys.path.append(datafolder)
 from pytorch_DGCNN.Logger import getlogger
@@ -22,6 +23,8 @@ class application_args:
 	batch_inprior: bool = True
 	hop: int = 2
 	batch_size: int = 50
+	number_of_executors: int = 4 # only for results logging
+	number_of_db_cores: int = 6 # only for results logging
 	results_path: str = "/opt/spark/work-dir/my_volume"
 
 	def set_attr(self, attr, value: str):
@@ -43,11 +46,22 @@ class application_args:
 		msg += f"batch_size: {str(self.batch_size)}\n"
 		return msg
 
-'''
-	TODO Stores passed files to mounted directory
-'''
-def save_locally(file):
-	print("hello")
+	def get_folder_results_path(self) -> str:
+		foldername = self.get_folder_results_name()
+		path = os.path.join(self.results_path, foldername)
+		if not os.path.exists(path):
+			os.mkdir(path)
+		return path
+
+	def get_folder_results_name(self) -> str:
+		folder = self.dataset+"_"
+		folder += "exec-"+str(self.number_of_executors)+"_"
+		folder += "cores-"+str(self.number_of_db_cores)+"_"
+		folder += "db-"+str(self.db_extraction)+"_"
+		folder += "batch-"+str(self.batch_inprior)+"_"
+		folder += "hop-"+str(self.hop)+"_"
+		folder += "batchSize-"+str(self.batch_size)
+		return folder
 
 '''
 	saves given subgraphs (pickled GNNGraphs and pairs lists) and extraction times
@@ -82,7 +96,7 @@ def save_subgraphs_times_batches(pickled_list, times_list, args: application_arg
 '''
 def save_subgraphs_times(pairs_list, subgraphs_list, times_list, args: application_args):
 	
-	path = args.results_path
+	path = args.get_folder_results_path()
 
 	times_path = os.path.join(path, "times")
 	pairs_path = os.path.join(path, "pairs")
@@ -102,6 +116,18 @@ def save_subgraphs_times(pairs_list, subgraphs_list, times_list, args: applicati
 		for pair in pairs_list:
 			f.write(str(pair))
 			f.write('\n')
+
+def save_prediction_results(results, time, args: application_args):
+	
+	path = args.get_folder_results_path()
+
+	for i, record in enumerate(results):
+		file = os.path.join(path, "results_batch_"+str(i))
+		np.savetxt(file, record, fmt=['%d', '%d', '%1.2f'])
+
+	file = os.path.join(path, "resulting_prediction_time")
+	with open(file, 'w') as f:
+		f.write(str(time))
 
 
 '''
