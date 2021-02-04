@@ -9,6 +9,7 @@
 import sys, os
 import pickle as pkl
 import numpy as np
+import itertools 
 datafolder = "/opt/spark/data"
 sys.path.append(datafolder)
 from pytorch_DGCNN.Logger import getlogger
@@ -25,7 +26,7 @@ class application_args:
 	batch_size: int = 50
 	number_of_executors: int = 4 # only for results logging
 	number_of_db_cores: int = 6 # only for results logging
-	results_path: str = "/opt/spark/work-dir/my_volume"
+	results_path: str = "/opt/spark/work-dir/my_volume" # location of persistent volume
 
 	def set_attr(self, attr, value: str):
 		assert hasattr(self, attr)
@@ -117,18 +118,39 @@ def save_subgraphs_times(pairs_list, subgraphs_list, times_list, args: applicati
 			f.write(str(pair))
 			f.write('\n')
 
-def save_prediction_results(results, time, args: application_args):
+def save_prediction_results(results, time, whole_extraction_time, args: application_args):
 	
 	path = args.get_folder_results_path()
 
-	for i, record in enumerate(results):
-		file = os.path.join(path, "results_batch_"+str(i))
-		np.savetxt(file, record, fmt=['%d', '%d', '%1.2f'])
+	# chain results
+	chained = list(itertools.chain.from_iterable(results))
+	file = os.path.join(path, "results")
+	np.savetxt(file, chained, fmt=['%d', '%d', '%1.2f'])
 
 	file = os.path.join(path, "resulting_prediction_time")
 	with open(file, 'w') as f:
-		f.write(str(time))
+		f.write("Resulting prediction time: " + str(time) + "\n")
+		f.write("Resulting whole extraction time: " + str(whole_extraction_time))
 
+'''
+	Get data used for prediction and extraction based on application params
+'''
+def get_prediction_data(args: application_args) -> list:
+	
+	positives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_positives_test.txt") 
+	positives = []
+	with open(positives_file, 'r') as f:
+		for line in f:
+			pair = line.strip().split(" ")
+			positives.append((int(pair[0]), int(pair[1])))
+	negatives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_negatives_test.txt") 
+	negatives = []
+	with open(negatives_file, 'r') as f:
+		for line in f:
+			pair = line.strip().split(" ")
+			negatives.append((int(pair[0]), int(pair[1])))
+	
+	return positives, negatives
 
 '''
 	parses given list of string arguments to applicatoin_args instance
@@ -161,5 +183,5 @@ def print_usage():
 	msg += "--batch_inprior choose whether to batch data prior to subgraph calcultation, defaults to true\n"
 	msg += "--hop choose hop number, defaults to 2\n"
 	msg += "--batch_size choose batch size of data, defaults to 50\n"
-	msg += "--results_path defaults to /opt/spark/work-dir/calculation_results"
+	msg += "--results_path defaults to /opt/spark/work-dir/my_volume which is a k8s persistent volume\n"
 	logger.info(msg)
