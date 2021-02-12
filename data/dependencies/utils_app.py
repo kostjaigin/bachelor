@@ -12,6 +12,7 @@ import numpy as np
 import itertools
 from pywebhdfs.webhdfs import PyWebHdfsClient
 datafolder = "/opt/spark/data"
+workdir = "/opt/spark/work-dir"
 sys.path.append(datafolder)
 from pytorch_DGCNN.Logger import getlogger
 
@@ -125,7 +126,7 @@ def save_prediction_results(results, time, whole_extraction_time, args: applicat
 	path = args.get_folder_results_path()
 	# save data on pod
 	chained = list(itertools.chain.from_iterable(results))
-	file = os.path.join(datafolder, 'prediction_'+args.get_folder_results_name())
+	file = os.path.join(workdir, 'prediction_'+args.get_folder_results_name())
 	np.savetxt(file, chained, fmt=['%d', '%d', '%1.2f'])
 	# access it to read linewise
 	predictions = ''
