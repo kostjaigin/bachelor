@@ -16,8 +16,8 @@ def save_dir(path, folder, hdfs):
 		os.mkdir(folder)
 	contents = hdfs.list_dir(path)['FileStatuses']['FileStatus']
 	for c in contents:
-		name = c['pathSuffix']
-		if c['type'] is 'DIRECTORY':
+		name = c['pathSuffix'].strip()
+		if c['type'].strip() is 'DIRECTORY':
 			save_dir(os.path.join(path, name), os.path.join(folder, name), hdfs)
 		else:
 			save_file(os.path.join(path, name), os.path.join(folder, name), hdfs)
