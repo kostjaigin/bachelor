@@ -133,7 +133,7 @@ def save_prediction_results(results, time, whole_extraction_time, args: applicat
 	with open(file, 'r') as f:
 		for line in f:
 			predictions += line.strip() + '\n'
-	os.path.remove(file)
+	os.remove(file)
 	# save results on hdfs
 	hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
 	file = os.path.join(path, "predictions")
