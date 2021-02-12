@@ -23,6 +23,7 @@ from pytorch_DGCNN.Logger import getlogger
 from pyspark import SparkFiles # access submited files
 
 service_ip = "bolt://neo4j-helm-neo4j:7687"
+# to connect host services use host.docker.internal address
 
 '''
 	performs subgraph extraction for given batch
@@ -134,6 +135,30 @@ def link2subgraph_adj(pair, h, A):
 		g.remove_edge(0, 1)
 
 	return GNNGraph(g, 1, labels.tolist())
+
+def linkslist2subgraph_db(graph, pairs_list, hop):
+	# query = """
+	# 	UNWIND $pairs AS pair
+	# 	MATCH (p1) WHERE p1.id = pair.node1
+	# 	MATCH (p2) WHERE p2.id = pair.node2
+	# 	MATCH (n:Node)
+	# 	WHERE n.id = p1.id or n.id = p2.id
+	# 	WITH n
+	# 	CALL apoc.path.subgraphNodes(n, {maxLevel:%d}) YIELD node
+	# 	WITH DISTINCT node
+	# 	WITH collect(node) as nds
+	# 	MATCH (src:Node)
+	# 	MATCH (dst:Node)
+	# 	WHERE src IN nds AND dst in nds
+	# 	MATCH (src)-[e:CONNECTION]->(dst)
+	# 	RETURN collect(e) AS edgs, nds
+	# """ % hop
+	# pairs = [{
+	# 	"node1": ,
+	# 	"node2": 
+	# } for pair in pairs_list]
+	print('probably not the best idea for now...')
+
 
 def link2subgraph_db(graph, pair, hop):
 	src, dst = pair[0], pair[1]
