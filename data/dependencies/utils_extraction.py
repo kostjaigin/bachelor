@@ -23,20 +23,21 @@ from pytorch_DGCNN.Logger import getlogger
 from pyspark import SparkFiles # access submited files
 
 service_ip = "bolt://neo4j-helm-neo4j:7687"
+# to connect host services use host.docker.internal address
 
 '''
 	performs subgraph extraction for given batch
 	returns pickled subgraphs together with list of positions in batch
 		and list of execution times for each pair in a batch
 '''
-def batches2subgraphs(batch, hop:int, db:bool, dataset:str = None):
+def batches2subgraphs(batch, hop:int, db:bool, A = None):
 	if db: 
 		# use db for graph extraction
 		# connect service
 		graph = Graph(service_ip)
 	else:
 		# if no db, dataset name required
-		assert dataset is not None
+		assert A is not None
 	graphs = []
 	batch_poses = [[], []]
 	times = []
@@ -46,7 +47,7 @@ def batches2subgraphs(batch, hop:int, db:bool, dataset:str = None):
 		if db:
 			gnn_graph = link2subgraph_db(graph, pair, hop)
 		else:
-			gnn_graph = link2subgraph_adj(pair, hop, dataset)
+			gnn_graph = link2subgraph_adj(pair, hop, A)
 		end = time.time()
 
 		times.append(end-start)
@@ -63,7 +64,7 @@ def batches2subgraphs(batch, hop:int, db:bool, dataset:str = None):
 '''
 	returns: pair tuple, GNNGraph subgraph, extraction time
 '''
-def link2subgraph(link, hop:int, db:bool, dataset:str = None):
+def link2subgraph(link, hop:int, db:bool, A = None):
 	graphs = []
 	if db: 
 		# use db for graph extraction
@@ -75,30 +76,14 @@ def link2subgraph(link, hop:int, db:bool, dataset:str = None):
 		return link, gnn_graph, (end-start)
 	else:
 		# if no db, dataset name required
-		assert dataset is not None
+		assert A is not None
 		start = time.time()
-		gnn_graph = link2subgraph_adj(link, hop, dataset)
+		gnn_graph = link2subgraph_adj(link, hop, A)
 		end = time.time()
 		return (link, gnn_graph, (end-start))
 
-def neighbors(fringe, A):
-	# find all 1-hop neighbors of nodes in fringe from A
-	res = set()
-	for node in fringe:
-		nei, _, _ = ssp.find(A[:, node])
-		nei = set(nei)
-		res = res.union(nei)
-	return res
-
-def link2subgraph_adj(pair, h, dataset):
-	# Read graph in a normal manner:
-	graphdata = SparkFiles.get(f'{dataset}.mat')
-	assert os.path.exists(graphdata)
-	data = sio.loadmat(graphdata)
-	net = data['net']
-
+def link2subgraph_adj(pair, h, A):
 	ind = pair
-	A = net.copy()
 	node_information = None
 	max_nodes_per_hop = None
 
@@ -151,6 +136,30 @@ def link2subgraph_adj(pair, h, dataset):
 
 	return GNNGraph(g, 1, labels.tolist())
 
+def linkslist2subgraph_db(graph, pairs_list, hop):
+	# query = """
+	# 	UNWIND $pairs AS pair
+	# 	MATCH (p1) WHERE p1.id = pair.node1
+	# 	MATCH (p2) WHERE p2.id = pair.node2
+	# 	MATCH (n:Node)
+	# 	WHERE n.id = p1.id or n.id = p2.id
+	# 	WITH n
+	# 	CALL apoc.path.subgraphNodes(n, {maxLevel:%d}) YIELD node
+	# 	WITH DISTINCT node
+	# 	WITH collect(node) as nds
+	# 	MATCH (src:Node)
+	# 	MATCH (dst:Node)
+	# 	WHERE src IN nds AND dst in nds
+	# 	MATCH (src)-[e:CONNECTION]->(dst)
+	# 	RETURN collect(e) AS edgs, nds
+	# """ % hop
+	# pairs = [{
+	# 	"node1": ,
+	# 	"node2": 
+	# } for pair in pairs_list]
+	print('probably not the best idea for now...')
+
+
 def link2subgraph_db(graph, pair, hop):
 	src, dst = pair[0], pair[1]
 	query = """
@@ -194,6 +203,19 @@ def link2subgraph_db(graph, pair, hop):
 		g.remove_edge(0, 1)
 	gnn_graph = GNNGraph(g, g_label, labels)
 	return gnn_graph
+
+'''
+█▀ █▀▀ ▄▀█ █░░
+▄█ ██▄ █▀█ █▄▄
+'''
+def neighbors(fringe, A):
+	# find all 1-hop neighbors of nodes in fringe from A
+	res = set()
+	for node in fringe:
+		nei, _, _ = ssp.find(A[:, node])
+		nei = set(nei)
+		res = res.union(nei)
+	return res
 
 def node_label(subgraph):
     # an implementation of the proposed double-radius node labeling (DRNL)

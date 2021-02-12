@@ -8,6 +8,9 @@
 '''
 import sys, os
 import pickle as pkl
+import numpy as np
+import itertools
+from pywebhdfs.webhdfs import PyWebHdfsClient
 datafolder = "/opt/spark/data"
 sys.path.append(datafolder)
 from pytorch_DGCNN.Logger import getlogger
@@ -22,7 +25,12 @@ class application_args:
 	batch_inprior: bool = True
 	hop: int = 2
 	batch_size: int = 50
-	results_path: str = "/opt/spark/work-dir/my_volume"
+	number_of_executors: int = 4 # only for results logging
+	number_of_db_cores: int = 6 # only for results logging
+	# location of persistent volume (without leading /)
+	results_path: str = "checkpoints/linkprediction/data"
+	hdfs_host: str = 'wally030.cit.tu-berlin.de'
+	hdfs_port: str = '50070'
 
 	def set_attr(self, attr, value: str):
 		assert hasattr(self, attr)
@@ -43,11 +51,20 @@ class application_args:
 		msg += f"batch_size: {str(self.batch_size)}\n"
 		return msg
 
-'''
-	TODO Stores passed files to mounted directory
-'''
-def save_locally(file):
-	print("hello")
+	def get_folder_results_path(self) -> str:
+		foldername = self.get_folder_results_name()
+		path = os.path.join(self.results_path, foldername)
+		return path
+
+	def get_folder_results_name(self) -> str:
+		folder = self.dataset+"_"
+		folder += "exec-"+str(self.number_of_executors)+"_"
+		folder += "cores-"+str(self.number_of_db_cores)+"_"
+		folder += "db-"+str(self.db_extraction)+"_"
+		folder += "batch-"+str(self.batch_inprior)+"_"
+		folder += "hop-"+str(self.hop)+"_"
+		folder += "batchSize-"+str(self.batch_size)
+		return folder
 
 '''
 	saves given subgraphs (pickled GNNGraphs and pairs lists) and extraction times
@@ -82,27 +99,69 @@ def save_subgraphs_times_batches(pickled_list, times_list, args: application_arg
 '''
 def save_subgraphs_times(pairs_list, subgraphs_list, times_list, args: application_args):
 	
-	path = args.results_path
-
+	path = args.get_folder_results_path()
 	times_path = os.path.join(path, "times")
 	pairs_path = os.path.join(path, "pairs")
+	hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
 
 	assert len(pairs_list) == len(subgraphs_list) == len(times_list)
 
+	times = ''
+	for t in times_list:
+		times += str(t) + '\n'
+	hdfs.create_file(times_path, times)
+	pairs = ''
+	for p in pairs_list:
+		pairs += str(p) + '\n'
+	hdfs.create_file(pairs_path, pairs)
+
 	for i, graph in enumerate(subgraphs_list):
 		graphs_path = os.path.join(path, "graph_"+str(i))
-		with open(graphs_path, 'wb') as f:
-			pickled = pkl.dumps(graph)
-			f.write(pickled)
-	with open(times_path, 'w') as f:
-		for t in times_list:
-			f.write(str(t))
-			f.write('\n')
-	with open(pairs_path, 'w') as f:
-		for pair in pairs_list:
-			f.write(str(pair))
-			f.write('\n')
+		hdfs.create_file(graphs_path, pkl.dumps(graph))
 
+
+def save_prediction_results(results, time, whole_extraction_time, args: application_args):
+	# get hdfs path
+	path = args.get_folder_results_path()
+	# save data on pod
+	chained = list(itertools.chain.from_iterable(results))
+	file = os.path.join(datafolder, 'prediction_'+args.get_folder_results_name())
+	np.savetxt(file, chained, fmt=['%d', '%d', '%1.2f'])
+	# access it to read linewise
+	predictions = ''
+	with open(file, 'r') as f:
+		for line in f:
+			predictions += line.strip() + '\n'
+	os.path.remove(file)
+	# save results on hdfs
+	hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
+	file = os.path.join(path, "predictions")
+	hdfs.create_file(file, predictions)
+
+	file = os.path.join(path, "resulting_prediction_time")
+	hdfs.create_file(file, str(whole_extraction_time))
+	file = os.path.join(path, "resulting_extraction_time")
+	hdfs.create_file(file, str(time))
+
+'''
+	Get data used for prediction and extraction based on application params
+'''
+def get_prediction_data(args: application_args) -> list:
+	
+	positives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_positives_test.txt") 
+	positives = []
+	with open(positives_file, 'r') as f:
+		for line in f:
+			pair = line.strip().split(" ")
+			positives.append((int(pair[0]), int(pair[1])))
+	negatives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_negatives_test.txt") 
+	negatives = []
+	with open(negatives_file, 'r') as f:
+		for line in f:
+			pair = line.strip().split(" ")
+			negatives.append((int(pair[0]), int(pair[1])))
+	
+	return positives, negatives
 
 '''
 	parses given list of string arguments to applicatoin_args instance
@@ -135,5 +194,7 @@ def print_usage():
 	msg += "--batch_inprior choose whether to batch data prior to subgraph calcultation, defaults to true\n"
 	msg += "--hop choose hop number, defaults to 2\n"
 	msg += "--batch_size choose batch size of data, defaults to 50\n"
-	msg += "--results_path defaults to /opt/spark/work-dir/calculation_results"
+	msg += "--results_path location of persistent volume (without leading /)\n"
+	msg += "--hdfs_host host of storage web interface\n"
+	msg += "--hdfs_port port of storage web interface\n"
 	logger.info(msg)

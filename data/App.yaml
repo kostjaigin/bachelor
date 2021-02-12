@@ -2,14 +2,12 @@
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
-  name: apps
+  name: App
   namespace: konstantin # remote for deployment
-  # namespace: default # local for testing
 spec:
   type: Python
   mode: cluster
-  image: docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.0.3 # remote for deployment
-  # image: kostjaigin/spark-py:v3.0.1-Ugin_0.0.2 # local for testing
+  image: docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.0.4 # remote for deployment
   mainApplicationFile: "local:///opt/spark/data/App.py"
 
   sparkVersion: "3.0.1"
@@ -21,7 +19,6 @@ spec:
 
   driver:
     serviceAccount: konstantin
-    # serviceAccount: default # local for testing
 
   deps:
     pyFiles: 

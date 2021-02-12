@@ -47,7 +47,7 @@ RUN set -ex && \
 # install required python packages
 RUN apt-get update && \
     apt install -y python3 python3-pip && \
-    pip3 install --upgrade pip torch networkx numpy cloudpickle tqdm sklearn pandas scipy py2neo
+    pip3 install --upgrade pip torch networkx numpy cloudpickle tqdm sklearn pandas scipy py2neo pywebhdfs
 
 COPY jars /opt/spark/jars
 COPY bin /opt/spark/bin
