@@ -1,5 +1,6 @@
 import os, sys
 from pywebhdfs.webhdfs import PyWebHdfsClient
+from tqdm import tqdm
 
 '''
 	Saves experiment results on host. Later extraction performed using scp.
@@ -15,18 +16,19 @@ def save_dir(path, folder, hdfs):
 	if not os.path.exists(folder):
 		os.mkdir(folder)
 	contents = hdfs.list_dir(path)['FileStatuses']['FileStatus']
-	for c in contents:
+	for c in tqdm(contents):
 		name = c['pathSuffix'].strip()
-		if c['type'].strip() is 'DIRECTORY':
+		if c['type'] == 'DIRECTORY':
 			save_dir(os.path.join(path, name), os.path.join(folder, name), hdfs)
 		else:
-			save_file(os.path.join(path, name), folder, hdfs)
+			save_file(os.path.join(path, name), os.path.join(folder, name), hdfs)
 
 # path: hdfs path, filepath: to what folder+name to save locally
 # todo probably wont work for bytes/won't be representable correctly
 def save_file(path, filepath, hdfs):
-	with open(filepath, 'w') as f:
-		f.write(hdfs.read_file(path))
+    content = hdfs.read_file(path)	
+    with open(filepath, 'w') as f:
+		f.write(content)
 
 if __name__ == "__main__":
 	args = sys.argv
