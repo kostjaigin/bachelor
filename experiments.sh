@@ -1,4 +1,4 @@
-export SPARK_HOME = '/data/konstantin.igin/bachelor';
+export SPARK_HOME='/data/konstantin.igin/bachelor';
 for hop in 1 2 3; do
 	for dataset in "USAir" "PB" "facebook" "arxiv"; do
 		for db in "True" "False"; do
