@@ -23,7 +23,7 @@ class application_args:
 	
 	dataset: str = "USAir"
 	db_extraction: bool = True
-	batch_inprior: bool = True
+	batch_inprior: bool = False
 	hop: int = 2
 	batch_size: int = 50
 	number_of_executors: int = 4 # only for results logging
@@ -116,9 +116,9 @@ def save_subgraphs_times(pairs_list, subgraphs_list, times_list, args: applicati
 		pairs += str(p) + '\n'
 	hdfs.create_file(pairs_path, pairs)
 
-	for i, graph in enumerate(subgraphs_list):
-		graphs_path = os.path.join(path, "graph_"+str(i))
-		hdfs.create_file(graphs_path, pkl.dumps(graph))
+	# for i, graph in enumerate(subgraphs_list):
+	# 	graphs_path = os.path.join(path, "graph_"+str(i))
+	# 	hdfs.create_file(graphs_path, pkl.dumps(graph))
 
 
 def save_prediction_results(results, time, whole_extraction_time, args: application_args):
@@ -192,10 +192,11 @@ def print_usage():
 	msg += "Ugin App allowed parameters:\n"
 	msg += "--dataset choose between datasets given in paper, defaults to USAir\n"
 	msg += "--db_extraction choose whether to use db-based extraction or original one, defaults to true\n"
-	msg += "--batch_inprior choose whether to batch data prior to subgraph calcultation, defaults to true\n"
+	msg += "--batch_inprior choose whether to batch data prior to subgraph calcultation, defaults to false\n"
 	msg += "--hop choose hop number, defaults to 2\n"
 	msg += "--batch_size choose batch size of data, defaults to 50\n"
 	msg += "--results_path location of persistent volume (without leading /)\n"
+	msg += "--number_of_executors only for logging and data storage, # of executors in Spark cluster\n"
 	msg += "--hdfs_host host of storage web interface\n"
 	msg += "--hdfs_port port of storage web interface\n"
 	logger.info(msg)

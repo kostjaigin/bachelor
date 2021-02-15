@@ -64,12 +64,9 @@ def batches2subgraphs(batch, hop:int, db:bool, A = None):
 '''
 	returns: pair tuple, GNNGraph subgraph, extraction time
 '''
-def link2subgraph(link, hop:int, db:bool, A = None):
-	graphs = []
+def link2subgraph(graph, link, hop:int, db:bool, A = None):
 	if db: 
 		# use db for graph extraction
-		# connect service
-		graph = Graph(service_ip) # bad design decision: node would recreate a graph instance and connection..
 		start = time.time()
 		gnn_graph = link2subgraph_db(graph, link, hop)
 		end = time.time()
@@ -136,28 +133,33 @@ def link2subgraph_adj(pair, h, A):
 
 	return GNNGraph(g, 1, labels.tolist())
 
-def linkslist2subgraph_db(graph, pairs_list, hop):
-	# query = """
-	# 	UNWIND $pairs AS pair
-	# 	MATCH (p1) WHERE p1.id = pair.node1
-	# 	MATCH (p2) WHERE p2.id = pair.node2
-	# 	MATCH (n:Node)
-	# 	WHERE n.id = p1.id or n.id = p2.id
-	# 	WITH n
-	# 	CALL apoc.path.subgraphNodes(n, {maxLevel:%d}) YIELD node
-	# 	WITH DISTINCT node
-	# 	WITH collect(node) as nds
-	# 	MATCH (src:Node)
-	# 	MATCH (dst:Node)
-	# 	WHERE src IN nds AND dst in nds
-	# 	MATCH (src)-[e:CONNECTION]->(dst)
-	# 	RETURN collect(e) AS edgs, nds
-	# """ % hop
-	# pairs = [{
-	# 	"node1": ,
-	# 	"node2": 
-	# } for pair in pairs_list]
-	print('probably not the best idea for now...')
+'''
+	Later we include batch_inprior processing... TODO
+'''
+def linkslist2subgraph_db(graph, pairs_batch, hop):
+	query = """
+		UNWIND $pairs AS pair
+		MATCH (p1) WHERE p1.id = pair.node1
+		MATCH (p2) WHERE p2.id = pair.node2
+		MATCH (n:Node)
+		WHERE n.id = p1.id or n.id = p2.id
+		WITH n
+		CALL apoc.path.subgraphNodes(n, {maxLevel:%d}) YIELD node
+		WITH DISTINCT node
+		WITH collect(node) as nds
+		MATCH (src:Node)
+		MATCH (dst:Node)
+		WHERE src IN nds AND dst in nds
+		MATCH (src)-[e:CONNECTION]->(dst)
+		RETURN collect(e) AS edgs, nds
+	""" % hop
+	pairs = [{
+		"node1": pair[0],
+		"node2": pair[1]
+	} for pair in pairs_batch]
+	results = list(graph.run(query, { "pairs": pairs }))
+	nodes = ""
+	return None
 
 
 def link2subgraph_db(graph, pair, hop):
