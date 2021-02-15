@@ -116,10 +116,6 @@ def save_subgraphs_times(pairs_list, subgraphs_list, times_list, args: applicati
 		pairs += str(p) + '\n'
 	hdfs.create_file(pairs_path, pairs)
 
-	# for i, graph in enumerate(subgraphs_list):
-	# 	graphs_path = os.path.join(path, "graph_"+str(i))
-	# 	hdfs.create_file(graphs_path, pkl.dumps(graph))
-
 
 def save_prediction_results(results, time, whole_extraction_time, args: application_args):
 	# get hdfs path
