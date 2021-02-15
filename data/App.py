@@ -13,8 +13,6 @@ from pyspark import SparkFiles # access submited files
 from py2neo import Graph
 
 datafolder = "/opt/spark/data"
-# to connect host services use host.docker.internal address
-service_ip = "bolt://neo4j-helm-neo4j:7687"
 
 sys.path.append(datafolder)
 # import pytorch_DGCNN from data folder of spark distribution
@@ -103,11 +101,10 @@ def main(args):
 	█▀ █░█ █▄▄ █▀▀ █▀█ ▄▀█ █▀█ █░█   █▀▀ ▀▄▀ ▀█▀ █▀█ ▄▀█ █▀▀ ▀█▀ █ █▀█ █▄░█
 	▄█ █▄█ █▄█ █▄█ █▀▄ █▀█ █▀▀ █▀█   ██▄ █░█ ░█░ █▀▄ █▀█ █▄▄ ░█░ █ █▄█ █░▀█
 	'''
-	graph = Graph(service_ip)
 	# parallelize all pairs
 	prediction_data_rdd = sc.parallelize(prediction_data)
 	# extract graphs for all pairs
-	prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(graph, pair, args.hop, args.db_extraction, A))
+	prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(pair, args.hop, args.db_extraction, A))
 	start = time.time()
 	# --> will contain pairs and corresponding subgraphs
 	pairs_subgraphs_times = prediction_subgraphs_pairs.collect()

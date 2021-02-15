@@ -16,6 +16,7 @@ import numpy as np
 import time
 import sys
 datafolder = "/opt/spark/data"
+service_ip = "bolt://neo4j-helm-neo4j:7687"
 sys.path.append(datafolder)
 from pytorch_DGCNN.predictor import *
 from pytorch_DGCNN.util import GNNGraph
@@ -25,8 +26,9 @@ from pyspark import SparkFiles # access submited files
 '''
 	returns: pair tuple, GNNGraph subgraph, extraction time
 '''
-def link2subgraph(graph, link, hop:int, db:bool, A = None):
-	if db: 
+def link2subgraph(link, hop:int, db:bool, A = None):
+	if db:
+		graph = Graph(service_ip)
 		# use db for graph extraction
 		start = time.time()
 		gnn_graph = link2subgraph_db(graph, link, hop)
