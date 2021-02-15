@@ -149,13 +149,13 @@ def save_prediction_results(results, time, whole_extraction_time, args: applicat
 '''
 def get_prediction_data(args: application_args) -> list:
 	
-	positives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_positives_test.txt") 
+	positives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_positives.txt") 
 	positives = []
 	with open(positives_file, 'r') as f:
 		for line in f:
 			pair = line.strip().split(" ")
 			positives.append((int(pair[0]), int(pair[1])))
-	negatives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_negatives_test.txt") 
+	negatives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_negatives.txt") 
 	negatives = []
 	with open(negatives_file, 'r') as f:
 		for line in f:
@@ -192,7 +192,7 @@ def print_usage():
 	msg += "Ugin App allowed parameters:\n"
 	msg += "--dataset choose between datasets given in paper, defaults to USAir\n"
 	msg += "--db_extraction choose whether to use db-based extraction or original one, defaults to true\n"
-	msg += "--batch_inprior choose whether to batch data prior to subgraph calcultation, defaults to false\n"
+	# msg += "--batch_inprior choose whether to batch data prior to subgraph calcultation, defaults to false\n"
 	msg += "--hop choose hop number, defaults to 2\n"
 	msg += "--batch_size choose batch size of data, defaults to 50\n"
 	msg += "--results_path location of persistent volume (without leading /)\n"

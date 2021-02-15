@@ -13,6 +13,7 @@ from pyspark import SparkFiles # access submited files
 from py2neo import Graph
 
 datafolder = "/opt/spark/data"
+# to connect host services use host.docker.internal address
 service_ip = "bolt://neo4j-helm-neo4j:7687"
 
 sys.path.append(datafolder)
@@ -102,59 +103,34 @@ def main(args):
 	█▀ █░█ █▄▄ █▀▀ █▀█ ▄▀█ █▀█ █░█   █▀▀ ▀▄▀ ▀█▀ █▀█ ▄▀█ █▀▀ ▀█▀ █ █▀█ █▄░█
 	▄█ █▄█ █▄█ █▄█ █▀▄ █▀█ █▀▀ █▀█   ██▄ █░█ ░█░ █▀▄ █▀█ █▄▄ ░█░ █ █▄█ █░▀█
 	'''
-	whole_extraction_time = None
 	graph = Graph(service_ip)
-	if args.batch_inprior:
-		# form batches (lists of pairs of len ~batch size)
-		batched_prediction_data = []
-		batch_data = []
-		for i, pair in enumerate(prediction_data):
-			batch_data.append(pair)
-			if len(batch_data) == args.batch_size or i == (len(prediction_data)-1):
-				batched_prediction_data.append(batch_data)
-				batch_data = []
-		# parallelize batches
-		prediction_rdd = sc.parallelize(batched_prediction_data)
-		logger.info("Data parallelized...")
-		# extract subgraphs:
-		prediction_subgraphs = prediction_rdd.map(lambda batch: batches2subgraphs(batch, args.hop, args.db_extraction, A))
-		# whole extraction time is also of interest: extraction happens in parallel on many nodes
-		start = time.time()
-		subgraphs_times = prediction_subgraphs.collect()
-		end = time.time()
-		whole_extraction_time = end-start
-		# extract subgraphs and times to two different lists
-		subgraphs, times = map(list, zip(*subgraphs_times))
-		# save extracted subgraphs and times
-		save_subgraphs_times_batches(subgraphs, times, args)
-	else:
-		# parallelize all pairs
-		prediction_data_rdd = sc.parallelize(prediction_data)
-		# extract graphs for all pairs
-		prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(graph, pair, args.hop, args.db_extraction, A))
-		start = time.time()
-		# --> will contain pairs and corresponding subgraphs
-		pairs_subgraphs_times = prediction_subgraphs_pairs.collect()
-		end = time.time()
-		whole_extraction_time = end-start
-		pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
-		# save extracted subgraphs and times
-		save_subgraphs_times(pairs, subgraphs, times, args)
-		# split into batches (partitions)
-		# form batches (lists of pairs of len ~batch size)
-		batched_prediction_data = []
-		batch_poses = [[], []]
-		graphs = []
-		for i, pair in enumerate(pairs):
-			batch_poses[0].append(pair[0])
-			batch_poses[1].append(pair[1])
-			graphs.append(subgraphs[i])
-			if len(graphs) == args.batch_size or i == (len(prediction_data)-1):
-				batch_data = pkl.dumps((graphs, batch_poses))
-				batched_prediction_data.append(batch_data)
-				graphs = []
-				batch_poses = [[], []]
-		subgraphs = batched_prediction_data
+	# parallelize all pairs
+	prediction_data_rdd = sc.parallelize(prediction_data)
+	# extract graphs for all pairs
+	prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(graph, pair, args.hop, args.db_extraction, A))
+	start = time.time()
+	# --> will contain pairs and corresponding subgraphs
+	pairs_subgraphs_times = prediction_subgraphs_pairs.collect()
+	end = time.time()
+	whole_extraction_time = end-start
+	pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
+	# save extracted subgraphs and times
+	save_subgraphs_times(pairs, subgraphs, times, args)
+	# split into batches (partitions)
+	# form batches (lists of pairs of len ~batch size)
+	batched_prediction_data = []
+	batch_poses = [[], []]
+	graphs = []
+	for i, pair in enumerate(pairs):
+		batch_poses[0].append(pair[0])
+		batch_poses[1].append(pair[1])
+		graphs.append(subgraphs[i])
+		if len(graphs) == args.batch_size or i == (len(prediction_data)-1):
+			batch_data = pkl.dumps((graphs, batch_poses))
+			batched_prediction_data.append(batch_data)
+			graphs = []
+			batch_poses = [[], []]
+	subgraphs = batched_prediction_data
 
 
 	'''

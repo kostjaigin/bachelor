@@ -22,45 +22,6 @@ from pytorch_DGCNN.util import GNNGraph
 from pytorch_DGCNN.Logger import getlogger
 from pyspark import SparkFiles # access submited files
 
-service_ip = "bolt://neo4j-helm-neo4j:7687"
-# to connect host services use host.docker.internal address
-
-'''
-	performs subgraph extraction for given batch
-	returns pickled subgraphs together with list of positions in batch
-		and list of execution times for each pair in a batch
-'''
-def batches2subgraphs(batch, hop:int, db:bool, A = None):
-	if db: 
-		# use db for graph extraction
-		# connect service
-		graph = Graph(service_ip)
-	else:
-		# if no db, dataset name required
-		assert A is not None
-	graphs = []
-	batch_poses = [[], []]
-	times = []
-	for pair in batch:
-
-		start = time.time()
-		if db:
-			gnn_graph = link2subgraph_db(graph, pair, hop)
-		else:
-			gnn_graph = link2subgraph_adj(pair, hop, A)
-		end = time.time()
-
-		times.append(end-start)
-		graphs.append(gnn_graph)
-		batch_poses[0].append(pair[0])
-		batch_poses[1].append(pair[1])
-	
-	logger = getlogger('Node '+str(os.getpid()))
-	logger.info("Worker done extracting batches...")
-	# serialized graphs and test positions
-	pickled = pkl.dumps((graphs, batch_poses))
-	return (pickled, times)
-
 '''
 	returns: pair tuple, GNNGraph subgraph, extraction time
 '''
@@ -132,35 +93,6 @@ def link2subgraph_adj(pair, h, A):
 		g.remove_edge(0, 1)
 
 	return GNNGraph(g, 1, labels.tolist())
-
-'''
-	Later we include batch_inprior processing... TODO
-'''
-def linkslist2subgraph_db(graph, pairs_batch, hop):
-	query = """
-		UNWIND $pairs AS pair
-		MATCH (p1) WHERE p1.id = pair.node1
-		MATCH (p2) WHERE p2.id = pair.node2
-		MATCH (n:Node)
-		WHERE n.id = p1.id or n.id = p2.id
-		WITH n
-		CALL apoc.path.subgraphNodes(n, {maxLevel:%d}) YIELD node
-		WITH DISTINCT node
-		WITH collect(node) as nds
-		MATCH (src:Node)
-		MATCH (dst:Node)
-		WHERE src IN nds AND dst in nds
-		MATCH (src)-[e:CONNECTION]->(dst)
-		RETURN collect(e) AS edgs, nds
-	""" % hop
-	pairs = [{
-		"node1": pair[0],
-		"node2": pair[1]
-	} for pair in pairs_batch]
-	results = list(graph.run(query, { "pairs": pairs }))
-	nodes = ""
-	return None
-
 
 def link2subgraph_db(graph, pair, hop):
 	src, dst = pair[0], pair[1]
