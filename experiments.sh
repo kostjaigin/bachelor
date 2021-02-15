@@ -1,6 +1,7 @@
 export SPARK_HOME='/data/konstantin.igin/bachelor';
 for hop in 1 2 3; do
 	for dataset in "USAir" "PB" "facebook" "arxiv"; do
+		$SPARK_HOME/load_db.sh $dataset;
 		for db in "True" "False"; do
 			for executors in 4 8 12; do
 				echo "|EXPERIMENT SETUP| " "hop: " $hop "|dataset: " $dataset "|DB extraction: " $db "|Batch in prior? " $batch_inprior "|# of execs: " $executors " |";
