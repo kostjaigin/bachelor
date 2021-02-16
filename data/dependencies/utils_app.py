@@ -26,6 +26,7 @@ class application_args:
 	batch_inprior: bool = False
 	hop: int = 2
 	batch_size: int = 50
+	links: int = 100 # how many links to take
 	number_of_executors: int = 4 # only for results logging
 	number_of_db_cores: int = 6 # only for results logging
 	# location of persistent volume (without leading /)
@@ -47,9 +48,9 @@ class application_args:
 		msg = ""
 		msg += f"dataset: {self.dataset}\n"
 		msg += f"db_extraction: {str(self.db_extraction)}\n"
-		msg += f"batch_inprior: {str(self.batch_inprior)}\n"
+		# msg += f"batch_inprior: {str(self.batch_inprior)}\n"
 		msg += f"hop: {str(self.hop)}\n"
-		msg += f"batch_size: {str(self.batch_size)}\n"
+		msg += f"links: {str(self.links)}\n"
 		return msg
 
 	def get_folder_results_path(self) -> str:
@@ -62,9 +63,9 @@ class application_args:
 		folder += "exec-"+str(self.number_of_executors)+"_"
 		folder += "cores-"+str(self.number_of_db_cores)+"_"
 		folder += "db-"+str(self.db_extraction)+"_"
-		folder += "batch-"+str(self.batch_inprior)+"_"
+		# folder += "batch-"+str(self.batch_inprior)+"_"
 		folder += "hop-"+str(self.hop)+"_"
-		folder += "batchSize-"+str(self.batch_size)
+		folder += "links-"+str(self.links)
 		return folder
 
 '''
@@ -145,19 +146,21 @@ def save_prediction_results(results, time, whole_extraction_time, args: applicat
 '''
 def get_prediction_data(args: application_args) -> list:
 	
-	positives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_positives.txt") 
+	positives_file = os.path.join(datafolder, "prediction_data", f"{args.dataset}_positives_{str(args.links)}.txt") 
 	positives = []
 	with open(positives_file, 'r') as f:
 		for line in f:
 			pair = line.strip().split(" ")
 			positives.append((int(pair[0]), int(pair[1])))
-	negatives_file = os.path.join(datafolder, "prediction_data", args.dataset+"_negatives.txt") 
+	negatives_file = os.path.join(datafolder, "prediction_data", f"{args.dataset}_negatives_{str(args.links)}.txt") 
 	negatives = []
 	with open(negatives_file, 'r') as f:
 		for line in f:
 			pair = line.strip().split(" ")
 			negatives.append((int(pair[0]), int(pair[1])))
 	
+	assert count(positives)+count(negatives) == args.links
+
 	return positives, negatives
 
 '''
@@ -192,6 +195,7 @@ def print_usage():
 	msg += "--hop choose hop number, defaults to 2\n"
 	msg += "--batch_size choose batch size of data, defaults to 50\n"
 	msg += "--results_path location of persistent volume (without leading /)\n"
+	msg += "--links how many links to take for experiments\n"
 	msg += "--number_of_executors only for logging and data storage, # of executors in Spark cluster\n"
 	msg += "--hdfs_host host of storage web interface\n"
 	msg += "--hdfs_port port of storage web interface\n"
