@@ -159,7 +159,7 @@ def get_prediction_data(args: application_args) -> list:
 			pair = line.strip().split(" ")
 			negatives.append((int(pair[0]), int(pair[1])))
 	
-	assert count(positives)+count(negatives) == args.links
+	assert len(positives)+len(negatives) == args.links
 
 	return positives, negatives
 
