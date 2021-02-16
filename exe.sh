@@ -4,7 +4,7 @@ $SPARK_HOME/bin/spark-submit \
 --conf spark.executor.instances=$2 \
 --conf spark.kubernetes.namespace=konstantin \
 --conf spark.kubernetes.authenticate.driver.serviceAccountName=konstantin \
---conf spark.kubernetes.container.image=docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.0.8 \
+--conf spark.kubernetes.container.image=docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.0.9 \
 --files "local:///opt/spark/data/build/dll/libgnn.d" \
 --files "local:///opt/spark/data/build/dll/libgnn.so" \
 --files "local:///opt/spark/data/build/lib/config.d" \
