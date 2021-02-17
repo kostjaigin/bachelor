@@ -5,7 +5,7 @@ import os, sys
 '''
 
 def main():
-	datasets = ["USAir", "PB", "facebook", "arxiv"]
+	datasets = ["USAir", "yeast", "PB", "facebook", "arxiv"]
 	for dataset in datasets:
 		positives = os.path.join(os.getcwd(), "data", f"{dataset}_positives.txt")
 		negatives = os.path.join(os.getcwd(), "data", f"{dataset}_negatives.txt")

@@ -23,5 +23,8 @@ $SPARK_HOME/bin/spark-submit \
 --files "local:///opt/spark/data/models/arxiv_hyper.pkl" \
 --files "local:///opt/spark/data/models/arxiv_model.pth" \
 --files "local:///opt/spark/data/prediction_data/arxiv.mat" \
+--files "local:///opt/spark/data/models/yeast_hyper.pkl" \
+--files "local:///opt/spark/data/models/yeast_model.pth" \
+--files "local:///opt/spark/data/prediction_data/yeast.mat" \
 --py-files "local:///opt/spark/data/dependencies.zip" \
 local:///opt/spark/data/App.py $@
