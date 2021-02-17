@@ -21,7 +21,7 @@ from pytorch_DGCNN.util import GNNGraph
 from pytorch_DGCNN.Logger import getlogger
 from utils_app import application_args, parse_args, print_usage
 from utils_app import save_subgraphs_times_batches, save_subgraphs_times, save_prediction_results
-from utils_app import get_prediction_data
+from utils_app import get_prediction_data, save_extraction_time
 from utils_extraction import *
 
 import pickle as pkl
@@ -113,6 +113,7 @@ def main(args):
 	pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
 	# save extracted subgraphs and times
 	save_subgraphs_times(pairs, subgraphs, times, args)
+	save_extraction_time(whole_extraction_time, args)
 	# split into batches (partitions)
 	# form batches (lists of pairs of len ~batch size)
 	batched_prediction_data = []
@@ -129,11 +130,11 @@ def main(args):
 			batch_poses = [[], []]
 	subgraphs = batched_prediction_data
 
-
 	'''
 	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
 	█▀▀ █▀▄ ██▄ █▄▀ █ █▄▄ ░█░ █ █▄█ █░▀█
 	'''
+	logger.info("Extraction completed, starting prediction...")
 	subgraphs_prediction = sc.parallelize(subgraphs)
 
 	# perform prediction:
