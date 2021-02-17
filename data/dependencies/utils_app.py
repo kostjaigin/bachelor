@@ -117,7 +117,7 @@ def save_subgraphs_times(pairs_list, subgraphs_list, times_list, args: applicati
 		pairs += str(p) + '\n'
 	hdfs.create_file(pairs_path, pairs)
 
-def save_extraction_time(time, args: applicatoin_args):
+def save_extraction_time(time, args: application_args):
 	path = args.get_folder_results_path()
 	hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
 	file = os.path.join(path, "whole_extraction_time")
