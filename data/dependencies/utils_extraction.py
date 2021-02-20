@@ -26,21 +26,12 @@ from pyspark import SparkFiles # access submited files
 '''
 	returns: pair tuple, GNNGraph subgraph, extraction time
 '''
-def link2subgraph(link, hop:int, db:bool, A = None):
-	if db:
-		graph = Graph(service_ip)
-		# use db for graph extraction
-		start = time.time()
-		gnn_graph = link2subgraph_db(graph, link, hop)
-		end = time.time()
-		return link, gnn_graph, (end-start)
-	else:
-		# if no db, dataset name required
-		assert A is not None
-		start = time.time()
-		gnn_graph = link2subgraph_adj(link, hop, A)
-		end = time.time()
-		return (link, gnn_graph, (end-start))
+def link2subgraph(link, hop:int, A = None):
+	assert A is not None
+	start = time.time()
+	gnn_graph = link2subgraph_adj(link, hop, A)
+	end = time.time()
+	return (link, gnn_graph, (end-start))
 
 def link2subgraph_adj(pair, h, A):
 	ind = pair
@@ -96,11 +87,22 @@ def link2subgraph_adj(pair, h, A):
 
 	return GNNGraph(g, 1, labels.tolist())
 
-def link2subgraph_db(graph, pair, hop):
-	src, dst = pair[0], pair[1]
+def links2subgraphs_db(pairs, hop):
+	graph = Graph(service_ip)
+	pairs_b = [{
+		"node1": pair[0],
+		"node2": pair[1]
+	} for pair in pairs]
 	query = """
+		UNWIND $pairs as p
+
+		CALL apoc.cypher.run("
+		MATCH (p1) WHERE p1.id = $pair.node1
+		MATCH (p2) WHERE p2.id = $pair.node2
+
 		MATCH (n:Node)
-		WHERE n.id = %d or n.id = %d
+		WHERE n.id = p1.id or n.id = p2.id
+
 		WITH n
 		CALL apoc.path.subgraphNodes(n, {maxLevel:%d}) YIELD node
 		WITH DISTINCT node
@@ -109,36 +111,44 @@ def link2subgraph_db(graph, pair, hop):
 		MATCH (dst:Node)
 		WHERE src IN nds AND dst in nds
 		MATCH (src)-[e:CONNECTION]->(dst)
+
 		RETURN collect(e) AS edgs, nds
-	""" % (src, dst, hop)
-	results = list(graph.run(query))
-	nodes = [int(node['id']) for node in results[0]['nds']]
-	# put src and dst on top
-	nodes.remove(src)
-	nodes.remove(dst)
-	nodes = [src, dst] + list(nodes)
-	# given labeling function functions with indeces, not ids
-	nodes_idx = list(range(0, len(nodes))) 
-	# edges need to be constructed between known indeces
-	nodes_map = dict(zip(nodes, nodes_idx)) # to access nodes index w. id
-	edges = [(nodes_map[int(edge.nodes[0]['id'])], nodes_map[int(edge.nodes[1]['id'])]) for edge in results[0]['edgs']]
-	# construct networkx graph from given nodes and edges:
-	g = nx.Graph()
-	g.add_nodes_from(nodes_idx)
-	g.add_edges_from(edges)
-	# construct sparse adjacency matrix for use of SEAL functions
-	subgraph = nx.to_scipy_sparse_matrix(g, weight=None, format='csc', dtype=np.float64)
-	# labels nodes in subgraphs
-	labels = node_label(subgraph).tolist()
-	# features TODO
-	features = None
-	# TODO check whether it is corret. Perhaps we should pass different values here.
-	g_label = 1
-	# remove edge between target nodes
-	if g.has_edge(0, 1):
-		g.remove_edge(0, 1)
-	gnn_graph = GNNGraph(g, g_label, labels)
-	return gnn_graph
+		"
+		, { pair : p } )
+		YIELD value
+		RETURN p, value.edgs as edges, value.nds as nodes
+	""" % hop
+	results = list(graph.run(query, { "pairs": pairs_b }))
+	subgraphs_pairs = []
+	for i, record in enumerate(results):
+		src, dst = int(results[i]['p']['node1']), int(results[i]['p']['node2'])
+		nodes = [int(node['id']) for node in results[i]['nodes']]
+		# put src and dst on top
+		nodes.remove(src)
+		nodes.remove(dst)
+		nodes = [src, dst] + list(nodes)
+		# given labeling function functions with indeces, not ids
+		nodes_idx = list(range(0, len(nodes))) 
+		# edges need to be constructed between known indeces
+		nodes_map = dict(zip(nodes, nodes_idx)) # to access nodes index w. id
+		edges = [(nodes_map[int(edge.nodes[0]['id'])], nodes_map[int(edge.nodes[1]['id'])]) for edge in results[i]['edges']]
+		# construct networkx graph from given nodes and edges:
+		g = nx.Graph()
+		g.add_nodes_from(nodes_idx)
+		g.add_edges_from(edges)
+		# construct sparse adjacency matrix for use of SEAL functions
+		subgraph = nx.to_scipy_sparse_matrix(g, weight=None, format='csc', dtype=np.float64)
+		# labels nodes in subgraphs
+		labels = node_label(subgraph).tolist()
+		# features TODO
+		features = None
+		g_label = 1
+		# remove edge between target nodes
+		if g.has_edge(0, 1):
+			g.remove_edge(0, 1)
+		gnn_graph = GNNGraph(g, g_label, labels)
+		subgraphs_pairs.append((gnn_graph, (src, dst)))
+	return subgraphs_pairs
 
 '''
 █▀ █▀▀ ▄▀█ █░░

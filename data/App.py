@@ -101,20 +101,39 @@ def main(args):
 	█▀ █░█ █▄▄ █▀▀ █▀█ ▄▀█ █▀█ █░█   █▀▀ ▀▄▀ ▀█▀ █▀█ ▄▀█ █▀▀ ▀█▀ █ █▀█ █▄░█
 	▄█ █▄█ █▄█ █▄█ █▀▄ █▀█ █▀▀ █▀█   ██▄ █░█ ░█░ █▀▄ █▀█ █▄▄ ░█░ █ █▄█ █░▀█
 	'''
-	# parallelize all pairs
-	prediction_data_rdd = sc.parallelize(prediction_data)
-	# extract graphs for all pairs
-	prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(pair, args.hop, args.db_extraction, A))
-	start = time.time()
-	# --> will contain pairs and corresponding subgraphs
-	pairs_subgraphs_times = prediction_subgraphs_pairs.collect()
-	end = time.time()
-	whole_extraction_time = end-start
-	pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
+	subgraphs = []
+	pairs = []
+	times = []
+	whole_extraction_time = 0
+
+	if args.db_extraction:
+		# extract all the subgraphs at once
+		start = time.time()
+		subgraphs_pairs = links2subgraphs_db(prediction_data, args.hop)
+		end = time.time()
+		whole_extraction_time = end-start
+		subgraphs, pairs = map(list, zip(*subgraphs_pairs))
+	else:
+		# parallelize all pairs
+		prediction_data_rdd = sc.parallelize(prediction_data)
+		# extract graphs for all pairs
+		prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(pair, args.hop, A))
+		start = time.time()
+		# --> will contain pairs and corresponding subgraphs
+		pairs_subgraphs_times = prediction_subgraphs_pairs.collect()
+		end = time.time()
+		whole_extraction_time = end-start
+		pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
+
+	logger.info("Extraction completed, saving results...")
 	# save extracted subgraphs and times
 	save_subgraphs_times(pairs, subgraphs, times, args)
 	save_extraction_time(whole_extraction_time, args)
-	# split into batches (partitions)
+
+	'''
+	█▄▄ ▄▀█ ▀█▀ █▀▀ █░█ █ █▄░█ █▀▀
+	█▄█ █▀█ ░█░ █▄▄ █▀█ █ █░▀█ █▄█
+	'''
 	# form batches (lists of pairs of len ~batch size)
 	batched_prediction_data = []
 	batch_poses = [[], []]
@@ -130,11 +149,12 @@ def main(args):
 			batch_poses = [[], []]
 	subgraphs = batched_prediction_data
 
+	logger.info("Batching completed, initiating prediction...")
+	
 	'''
 	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
 	█▀▀ █▀▄ ██▄ █▄▀ █ █▄▄ ░█░ █ █▄█ █░▀█
 	'''
-	logger.info("Extraction completed, starting prediction...")
 	subgraphs_prediction = sc.parallelize(subgraphs)
 
 	# perform prediction:
