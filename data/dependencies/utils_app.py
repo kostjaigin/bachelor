@@ -106,7 +106,7 @@ def save_subgraphs_times(pairs_list, subgraphs_list, times_list, args: applicati
 	pairs_path = os.path.join(path, "pairs")
 	hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
 
-	assert len(pairs_list) == len(subgraphs_list) == len(times_list)
+	assert len(pairs_list) == len(subgraphs_list)
 
 	times = ''
 	for t in times_list:
