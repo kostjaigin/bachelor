@@ -7,6 +7,8 @@ for hop in 1 2; do
 			for links in 10 100 500 1000; do
 				echo "|EXPERIMENT SETUP| " "hop: " $hop "|dataset: " $dataset "|# links: " $links "|Batch in prior? " $batch_inprior "|# of execs: " $executors " |";
 				$SPARK_HOME/exe.sh --number_of_executors 4 --hop $hop --links $links --db_extraction "True" --dataset $dataset;
+				# clean up
+				kubectl get pods --field-selector 'status.phase=Succeeded' -o name | xargs kubectl delete;
 			done
 		#done
 		# done
