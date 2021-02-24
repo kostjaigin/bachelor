@@ -1,4 +1,4 @@
-export SPARK_HOME='/data/konstantin.igin/bachelor';
+export SPARK_HOME='/home/konstantin.igin/bachelor';
 for hop in 1 2; do
 	for dataset in "USAir" "yeast" "PB" "facebook" "arxiv"; do
 		$SPARK_HOME/load_db.sh $dataset;
