@@ -24,6 +24,7 @@ class application_args:
 	dataset: str = "USAir"
 	db_extraction: bool = True
 	batch_inprior: bool = False
+	use_extracted: bool = False
 	hop: int = 2
 	batch_size: int = 50
 	links: int = 100 # how many links to take
@@ -63,7 +64,7 @@ class application_args:
 		folder += "exec-"+str(self.number_of_executors)+"_"
 		folder += "cores-"+str(self.number_of_db_cores)+"_"
 		folder += "db-"+str(self.db_extraction)+"_"
-		# folder += "batch-"+str(self.batch_inprior)+"_"
+		folder += "useextracted-"+str(self.use_extracted)+"_"
 		folder += "hop-"+str(self.hop)+"_"
 		folder += "links-"+str(self.links)
 		return folder
