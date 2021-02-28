@@ -7,7 +7,7 @@ from tqdm import tqdm
 '''
 
 def main(folder):
-	hdfs = PyWebHdfsClient(host='wally030.cit.tu-berlin.de', port='50070')
+	hdfs = PyWebHdfsClient(host='130.149.249.25', port='50070')
 	path = 'checkpoints/linkprediction/data/'
 	save_dir(path, folder, hdfs)
 

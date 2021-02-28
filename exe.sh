@@ -2,9 +2,10 @@ $SPARK_HOME/bin/spark-submit \
 --master k8s://https://130.149.249.40:6443 \
 --deploy-mode cluster \
 --conf spark.executor.instances=$2 \
+--conf spark.kubernetes.memoryOverheadFactor=0.99 \
 --conf spark.kubernetes.namespace=konstantin \
 --conf spark.kubernetes.authenticate.driver.serviceAccountName=konstantin \
---conf spark.kubernetes.container.image=docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.1.05 \
+--conf spark.kubernetes.container.image=docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.1.07 \
 --files "local:///opt/spark/data/build/dll/libgnn.d" \
 --files "local:///opt/spark/data/build/dll/libgnn.so" \
 --files "local:///opt/spark/data/build/lib/config.d" \

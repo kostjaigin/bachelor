@@ -29,8 +29,6 @@ import numpy as np
 import time
 import scipy.io as sio
 
-import networkx as nx
-
 def apply_network(dataset:str, serialized):
 	hyperparams_route = SparkFiles.get(f'{dataset}_hyper.pkl')
 	model_route = SparkFiles.get(f'{dataset}_model.pth')
@@ -108,41 +106,29 @@ def main(args):
 	times = []
 	whole_extraction_time = 0
 
-	if not args.use_extracted:
-		if args.db_extraction:
-			# extract all the subgraphs at once
-			start = time.time()
-			subgraphs_pairs = links2subgraphs_db(prediction_data, args.hop)
-			end = time.time()
-			whole_extraction_time = end-start
-			subgraphs, pairs = map(list, zip(*subgraphs_pairs))
-		else:
-			# parallelize all pairs
-			prediction_data_rdd = sc.parallelize(prediction_data)
-			# extract graphs for all pairs
-			prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(pair, args.hop, A))
-			start = time.time()
-			# --> will contain pairs and corresponding subgraphs
-			pairs_subgraphs_times = prediction_subgraphs_pairs.collect()
-			end = time.time()
-			whole_extraction_time = end-start
-			pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
-
-		logger.info("Extraction completed, saving results...")
-		# save extracted subgraphs and times
-		save_subgraphs_times(pairs, subgraphs, times, args)
-		save_extraction_time(whole_extraction_time, args)
+	if args.db_extraction:
+		# extract all the subgraphs at once
+		start = time.time()
+		subgraphs_pairs = links2subgraphs_db(prediction_data, args.hop)
+		end = time.time()
+		whole_extraction_time = end-start
+		subgraphs, pairs = map(list, zip(*subgraphs_pairs))
 	else:
-		# read extracted subgraphs:
-		extracted_folder = os.path.join(datafolder, "prediction_data", f"{args.dataset}")
-		for i in range(args.links):
-			pairs.append(prediction_data[i])
-			graph_file = os.path.join(extracted_folder, f"graph_{str(i)}")
-			with open(graph_file, 'rb') as f:
-				s_g, label, node_tags, node_features = pickle.load(f)
-				subgraphs.append(GNNGraph(s_g, label, node_tags, node_features))
+		# parallelize all pairs
+		prediction_data_rdd = sc.parallelize(prediction_data)
+		# extract graphs for all pairs
+		prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(pair, args.hop, A))
+		start = time.time()
+		# --> will contain pairs and corresponding subgraphs
+		pairs_subgraphs_times = prediction_subgraphs_pairs.collect()
+		end = time.time()
+		whole_extraction_time = end-start
+		pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
 
-	logger.info(f"Extraction completed, subgraphs has {str(len(subgraphs))} elements..")
+	logger.info("Extraction completed, saving results...")
+	# save extracted subgraphs and times
+	save_subgraphs_times(pairs, subgraphs, times, args)
+	save_extraction_time(whole_extraction_time, args)
 
 	'''
 	█▄▄ ▄▀█ ▀█▀ █▀▀ █░█ █ █▄░█ █▀▀
