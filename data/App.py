@@ -29,6 +29,8 @@ import numpy as np
 import time
 import scipy.io as sio
 
+import gc
+
 def apply_network(dataset:str, serialized):
 	hyperparams_route = SparkFiles.get(f'{dataset}_hyper.pkl')
 	model_route = SparkFiles.get(f'{dataset}_model.pth')
@@ -150,6 +152,16 @@ def main(args):
 	subgraphs = batched_prediction_data
 
 	logger.info("Batching completed, initiating prediction...")
+	logger.info("Clearing memory...")
+	if not args.db_extraction:
+		del prediction_data_rdd
+		del prediction_subgraphs_pairs
+		del pairs_subgraphs_times
+		del batch_data
+		del batched_prediction_data
+		del batch_poses
+	# gc.collect()
+	logger.info("Python Cache cleared! Continuing...")
 	
 	'''
 	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
