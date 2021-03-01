@@ -31,7 +31,7 @@ class application_args:
 	number_of_db_cores: int = 6 # only for results logging
 	# location of persistent volume (without leading /)
 	results_path: str = "checkpoints/linkprediction/data"
-	hdfs_host: str = 'wally030.cit.tu-berlin.de'
+	hdfs_host: str = '130.149.249.25'
 	hdfs_port: str = '50070'
 
 	def set_attr(self, attr, value: str):
