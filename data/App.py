@@ -29,6 +29,8 @@ import numpy as np
 import time
 import scipy.io as sio
 
+import gc
+
 def apply_network(dataset:str, serialized):
 	hyperparams_route = SparkFiles.get(f'{dataset}_hyper.pkl')
 	model_route = SparkFiles.get(f'{dataset}_model.pth')
@@ -45,6 +47,7 @@ def main(args):
 			.appName("UginDGCNN")\
 			.getOrCreate()
 	sc = spark.sparkContext
+	spark.catalog.clearCache()
 
 	logger = getlogger('Node '+str(os.getpid()))
 	logger.info("Spark Context established, going though app logic...")
@@ -150,6 +153,20 @@ def main(args):
 	subgraphs = batched_prediction_data
 
 	logger.info("Batching completed, initiating prediction...")
+	
+	if not args.db_extraction:
+		logger.info("Clearing memory...")
+		del prediction_data_rdd
+		del prediction_subgraphs_pairs
+		del pairs_subgraphs_times
+		del batch_data
+		del batched_prediction_data
+		del batch_poses
+		del graphs
+		spark.catalog.clearCache()
+		gc.collect()
+		assert subgraphs is not None
+		logger.info("Python Cache cleared! Continuing...")
 	
 	'''
 	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
