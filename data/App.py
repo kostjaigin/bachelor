@@ -47,6 +47,7 @@ def main(args):
 			.appName("UginDGCNN")\
 			.getOrCreate()
 	sc = spark.sparkContext
+	spark.catalog.clearCache()
 
 	logger = getlogger('Node '+str(os.getpid()))
 	logger.info("Spark Context established, going though app logic...")
@@ -152,16 +153,20 @@ def main(args):
 	subgraphs = batched_prediction_data
 
 	logger.info("Batching completed, initiating prediction...")
-	logger.info("Clearing memory...")
+	
 	if not args.db_extraction:
+		logger.info("Clearing memory...")
 		del prediction_data_rdd
 		del prediction_subgraphs_pairs
 		del pairs_subgraphs_times
 		del batch_data
 		del batched_prediction_data
 		del batch_poses
-	# gc.collect()
-	logger.info("Python Cache cleared! Continuing...")
+		del graphs
+		spark.catalog.clearCache()
+		gc.collect()
+		assert subgraphs is not None
+		logger.info("Python Cache cleared! Continuing...")
 	
 	'''
 	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
