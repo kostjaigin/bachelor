@@ -145,6 +145,17 @@ def save_prediction_results(results, time, whole_extraction_time, args: applicat
 	file = os.path.join(path, "resulting_extraction_time")
 	hdfs.create_file(file, str(time))
 
+def save_prediction_results_single(time, args: application_args):
+	# get hdfs path
+	single_args = args.copy()
+	single_args.number_of_executors = 1
+	# get hdfs path
+	path = args.get_folder_results_path()
+	# save results on hdfs
+	hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
+	file = os.path.join(path, "resulting_prediction_time")
+	hdfs.create_file(file, str(time))
+
 '''
 	Get data used for prediction and extraction based on application params
 '''
