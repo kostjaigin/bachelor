@@ -33,6 +33,8 @@ class application_args:
 	results_path: str = "checkpoints/linkprediction/data"
 	hdfs_host: str = '130.149.249.25'
 	hdfs_port: str = '50070'
+	# spark batching parameters
+	calculation_batch: int = 1000
 
 	def set_attr(self, attr, value: str):
 		assert hasattr(self, attr)
@@ -43,6 +45,10 @@ class application_args:
 			setattr(self, attr, value == 'True')
 		elif typ is int:
 			setattr(self, attr, int(value))
+
+	# how many batches of batches to form prior to prediction
+	def get_prediction_batch(self) -> int:
+		return self.calculation_batch/self.batch_size	
 
 	def print_attributes(self) -> str:
 		msg = ""
@@ -214,4 +220,5 @@ def print_usage():
 	msg += "--number_of_executors only for logging and data storage, # of executors in Spark cluster\n"
 	msg += "--hdfs_host host of storage web interface\n"
 	msg += "--hdfs_port port of storage web interface\n"
+	msg += "--calculation_batch batch size of Spark calculations, defaults to 1000\n"
 	logger.info(msg)
