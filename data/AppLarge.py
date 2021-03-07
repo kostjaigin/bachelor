@@ -194,7 +194,7 @@ def main(args):
 	for subgraph in subgraphs:
 		apply_network(args.dataset, subgraph)
 	end = time.time()
-	save_prediction_results_single(end-start, args: application_args)
+	save_prediction_results_single(end-start, args)
 
 
 
