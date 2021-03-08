@@ -89,3 +89,12 @@ def main(args):
 	# save time
 	save_extraction_time(whole_extraction_time, args)
 	logger.info("Extraction completed, results saved...")
+
+if __name__ == "__main__":
+	args = sys.argv
+	# exclude app name
+	args.pop(0)
+	# adapt arguments
+	args = parse_args(args)
+	# execute 
+	main(args)

@@ -2,7 +2,7 @@ $SPARK_HOME/bin/spark-submit \
 --master k8s://https://kubernetes.docker.internal:6443 \
 --deploy-mode cluster \
 --conf spark.executor.instances=$2 \
---conf spark.kubernetes.container.image=docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.1.133 \
+--conf spark.kubernetes.container.image=docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.1.135 \
 --files "local:///opt/spark/data/build/dll/libgnn.d" \
 --files "local:///opt/spark/data/build/dll/libgnn.so" \
 --files "local:///opt/spark/data/build/lib/config.d" \
@@ -27,4 +27,4 @@ $SPARK_HOME/bin/spark-submit \
 --files "local:///opt/spark/data/models/yeast_model.pth" \
 --files "local:///opt/spark/data/prediction_data/yeast.mat" \
 --py-files "local:///opt/spark/data/dependencies.zip" \
-local:///opt/spark/data/AppBatch.py $@
+local:///opt/spark/data/Extraction.py $@
