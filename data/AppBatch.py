@@ -101,27 +101,54 @@ def main(args):
 	logger.info("Data sampled...")
 
 	'''
-	█▀ █░█ █▄▄ █▀▀ █▀█ ▄▀█ █▀█ █░█   █▀▀ ▀▄▀ ▀█▀ █▀█ ▄▀█ █▀▀ ▀█▀ █ █▀█ █▄░█
-	▄█ █▄█ █▄█ █▄█ █▀▄ █▀█ █▀▀ █▀█   ██▄ █░█ ░█░ █▀▄ █▀█ █▄▄ ░█░ █ █▄█ █░▀█
+	█▀▀ ▀▄▀ ▀█▀ █▀█ ▄▀█ █▀▀ ▀█▀ █ █▀█ █▄░█
+	██▄ █░█ ░█░ █▀▄ █▀█ █▄▄ ░█░ █ █▄█ █░▀█
+	█▄▄ ▄▀█ ▀█▀ █▀▀ █░█ █ █▄░█ █▀▀
+	█▄█ █▀█ ░█░ █▄▄ █▀█ █ █░▀█ █▄█
 	'''
-	subgraphs = []
-	pairs = []
-	times = []
-	whole_extraction_time = 0
+	batched_prediction_data = []
+	helps = [] 
+	logger.info("Forming batches of prediction data for extraction tasks...")
+	for i, pair in enumerate(prediction_data):
+		helps.append(pair)
+		if len(helps) == args.calculation_batch or i == (len(prediction_data) - 1):
+			batched_prediction_data.append(helps.copy())
+			helps = []
+	del helps, prediction_data
+	gc.collect()
+	logger.info("Batches of prediction data for extraction formed...")
+	# batched prediction data contains batches of args.calculation_batch size of prediction pairs #
 
-	# parallelize all pairs
-	prediction_data_rdd = sc.parallelize(prediction_data)
-	# extract graphs for all pairs
-	prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(pair, args.hop, A))
+	all_subgraphs, all_times, all_pairs = [], [], []
+	whole_extraction_time = 0
 	start = time.time()
-	# --> will contain pairs and corresponding subgraphs
-	pairs_subgraphs_times = prediction_subgraphs_pairs.collect()
+	for i, batch in enumerate(batched_prediction_data):
+		logger.info(f"Starting extraction for {str(i)}/{str(len(batched_prediction_data))} batch")
+		'''
+		█▀ █░█ █▄▄ █▀▀ █▀█ ▄▀█ █▀█ █░█   █▀▀ ▀▄▀ ▀█▀ █▀█ ▄▀█ █▀▀ ▀█▀ █ █▀█ █▄░█
+		▄█ █▄█ █▄█ █▄█ █▀▄ █▀█ █▀▀ █▀█   ██▄ █░█ ░█░ █▀▄ █▀█ █▄▄ ░█░ █ █▄█ █░▀█
+		'''
+		subgraphs, pairs, times = [], [], []
+		# parallelize all pairs
+		prediction_data_rdd = sc.parallelize(batch)
+		# extract graphs for all pairs
+		prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(pair, args.hop, A))
+		# --> will contain pairs and corresponding subgraphs
+		pairs_subgraphs_times = prediction_subgraphs_pairs.collect()
+		pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
+		all_subgraphs += subgraphs
+		all_pairs += pairs
+		all_times += times
+		del prediction_data_rdd, prediction_subgraphs_pairs, pairs_subgraphs_times, pairs, subgraphs, times
+		spark.catalog.clearCache()
+		gc.collect()
 	end = time.time()
 	whole_extraction_time = end-start
-	pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
-
 	logger.info("Extraction completed, saving results...")
 	# save extracted subgraphs and times
+	subgraphs, pairs, times = all_subgraphs, all_pairs, all_times
+	del all_subgraphs, all_pairs, all_times
+	gc.collect()
 	save_subgraphs_times(pairs, subgraphs, times, args)
 	save_extraction_time(whole_extraction_time, args)
 
@@ -137,7 +164,7 @@ def main(args):
 		batch_poses[0].append(pair[0])
 		batch_poses[1].append(pair[1])
 		graphs.append(subgraphs[i])
-		if len(graphs) == args.batch_size or i == (len(prediction_data)-1):
+		if len(graphs) == args.batch_size or i == (len(pairs)-1):
 			batch_data = pkl.dumps((graphs, batch_poses))
 			batched_prediction_data.append(batch_data)
 			graphs = []
@@ -148,9 +175,6 @@ def main(args):
 	
 	# Clear memory
 	logger.info("Clearing memory...")
-	del prediction_data_rdd
-	del prediction_subgraphs_pairs
-	del pairs_subgraphs_times
 	del batch_data
 	del batched_prediction_data
 	del batch_poses
@@ -161,8 +185,8 @@ def main(args):
 	logger.info("Python Cache cleared! Continuing...")
 
 	'''
-	█▀▀ ▀▄▀ ▀█▀ █▀█ ▄▀█ █▀▀ ▀█▀ █ █▀█ █▄░█
-	██▄ █░█ ░█░ █▀▄ █▀█ █▄▄ ░█░ █ █▄█ █░▀█
+	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
+	█▀▀ █▀▄ ██▄ █▄▀ █ █▄▄ ░█░ █ █▄█ █░▀█
 	█▄▄ ▄▀█ ▀█▀ █▀▀ █░█ █ █▄░█ █▀▀
 	█▄█ █▀█ ░█░ █▄▄ █▀█ █ █░▀█ █▄█
 	'''
@@ -193,9 +217,7 @@ def main(args):
 		predictions = subgraphs_prediction.map(lambda graph: apply_network(args.dataset, graph))
 
 		# extract results with .collect() method:
-		start = time.time()
 		results = predictions.collect()
-		end = time.time()
 		all_results += results
 		del results, subgraphs_prediction, predictions
 		spark.catalog.clearCache()
