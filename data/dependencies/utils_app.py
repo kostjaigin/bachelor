@@ -126,7 +126,7 @@ def save_extraction_time(time, args: application_args):
 	path = args.get_folder_results_path()
 	hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
 	file = os.path.join(path, "whole_extraction_time")
-	hdfs.create_file(file, str(time))
+	hdfs.create_file(file, str(time), overwrite=True)
 
 def save_extracted_subgraph(elements, args: application_args):
 	pair, subgraph, _ = elements
