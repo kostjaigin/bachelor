@@ -134,7 +134,7 @@ def save_extracted_subgraph(elements, args: application_args):
 	hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
 	file = os.path.join(path, f"graph_{str(pair[0])}_{str(pair[1])}")
 	pickled = pkl.dumps(subgraph)
-	hdfs.create_file(file, pickled)
+	hdfs.create_file(file, pickled, overwrite=True)
 
 def save_prediction_results(results, time, whole_extraction_time, args: application_args):
 	# get hdfs path
