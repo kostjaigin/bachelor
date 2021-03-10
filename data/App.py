@@ -10,7 +10,6 @@ import sys
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession
 from pyspark import SparkFiles # access submited files
-from py2neo import Graph
 
 datafolder = "/opt/spark/data"
 
@@ -20,14 +19,14 @@ from pytorch_DGCNN.predictor import *
 from pytorch_DGCNN.util import GNNGraph
 from pytorch_DGCNN.Logger import getlogger
 from utils_app import application_args, parse_args, print_usage
-from utils_app import save_subgraphs_times_batches, save_subgraphs_times, save_prediction_results
-from utils_app import get_prediction_data, save_extraction_time
+from utils_app import save_prediction_results
 from utils_extraction import *
 
 import pickle as pkl
 import numpy as np
 import time
 import scipy.io as sio
+import math
 
 import gc
 
@@ -36,6 +35,19 @@ def apply_network(dataset:str, serialized):
 	model_route = SparkFiles.get(f'{dataset}_model.pth')
 	predictor = Predictor(hyperparams_route, model_route)
 	return predictor.predict(serialized)
+
+def read_line(line) -> tuple:
+	pair = line.strip().split(" ")
+	src, dst = int(pair[0]), int(pair[1])
+	return (src, dst)
+
+def transform_to_list(l):
+	pairs, subgraphs, _ = map(list, zip(*l))
+	batch_poses = [[], []]
+	for pair in pairs:
+		batch_poses[0].append(pair[0])
+		batch_poses[1].append(pair[1])
+	return pkl.dumps((subgraphs, batch_poses))
 
 def main(args):
 	'''
@@ -47,11 +59,8 @@ def main(args):
 			.appName("UginDGCNN")\
 			.getOrCreate()
 	sc = spark.sparkContext
-	spark.catalog.clearCache()
 
 	logger = getlogger('Node '+str(os.getpid()))
-	logger.info("Spark Context established, going though app logic...")
-
 	logger.info("Application params:\n" + args.print_attributes())
 
 	'''
@@ -87,106 +96,38 @@ def main(args):
 		assert os.path.exists(build_path)
 		sc.addFile(build_path)
 
-	logger.info("Build paths attached...")
-
-	'''
-	▀█▀ █▀▀ █▀ ▀█▀   █▀▄ ▄▀█ ▀█▀ ▄▀█
-	░█░ ██▄ ▄█ ░█░   █▄▀ █▀█ ░█░ █▀█
-	'''
-	positives, negatives = get_prediction_data(args)
-	prediction_data = positives + negatives
 	datafile = os.path.join(datafolder, f'prediction_data/{args.dataset}.mat')
 	assert os.path.exists(datafile)
-	A = sio.loadmat(datafile)['net']
-	logger.info("Data sampled...")
+	A = sio.loadmat(datafile)['net'] # graph
+	logger.info("Build paths attached...")
 
-	'''
-	█▀ █░█ █▄▄ █▀▀ █▀█ ▄▀█ █▀█ █░█   █▀▀ ▀▄▀ ▀█▀ █▀█ ▄▀█ █▀▀ ▀█▀ █ █▀█ █▄░█
-	▄█ █▄█ █▄█ █▄█ █▀▄ █▀█ █▀▀ █▀█   ██▄ █░█ ░█░ █▀▄ █▀█ █▄▄ ░█░ █ █▄█ █░▀█
-	'''
-	subgraphs = []
-	pairs = []
-	times = []
-	whole_extraction_time = 0
-
-	if args.db_extraction:
-		# extract all the subgraphs at once
-		start = time.time()
-		subgraphs_pairs = links2subgraphs_db(prediction_data, args.hop)
-		end = time.time()
-		whole_extraction_time = end-start
-		subgraphs, pairs = map(list, zip(*subgraphs_pairs))
-	else:
-		# parallelize all pairs
-		prediction_data_rdd = sc.parallelize(prediction_data)
-		# extract graphs for all pairs
-		prediction_subgraphs_pairs = prediction_data_rdd.map(lambda pair: link2subgraph(pair, args.hop, A))
-		start = time.time()
-		# --> will contain pairs and corresponding subgraphs
-		pairs_subgraphs_times = prediction_subgraphs_pairs.collect()
-		end = time.time()
-		whole_extraction_time = end-start
-		pairs, subgraphs, times = map(list, zip(*pairs_subgraphs_times))
-
-	logger.info("Extraction completed, saving results...")
-	# save extracted subgraphs and times
-	save_subgraphs_times(pairs, subgraphs, times, args)
-	save_extraction_time(whole_extraction_time, args)
-
-	'''
-	█▄▄ ▄▀█ ▀█▀ █▀▀ █░█ █ █▄░█ █▀▀
-	█▄█ █▀█ ░█░ █▄▄ █▀█ █ █░▀█ █▄█
-	'''
-	# form batches (lists of pairs of len ~batch size)
-	batched_prediction_data = []
-	batch_poses = [[], []]
-	graphs = []
-	for i, pair in enumerate(pairs):
-		batch_poses[0].append(pair[0])
-		batch_poses[1].append(pair[1])
-		graphs.append(subgraphs[i])
-		if len(graphs) == args.batch_size or i == (len(prediction_data)-1):
-			batch_data = pkl.dumps((graphs, batch_poses))
-			batched_prediction_data.append(batch_data)
-			graphs = []
-			batch_poses = [[], []]
-	subgraphs = batched_prediction_data
-
-	logger.info("Batching completed, initiating prediction...")
-	
-	if not args.db_extraction:
-		logger.info("Clearing memory...")
-		del prediction_data_rdd
-		del prediction_subgraphs_pairs
-		del pairs_subgraphs_times
-		del batch_data
-		del batched_prediction_data
-		del batch_poses
-		del graphs
-		spark.catalog.clearCache()
-		gc.collect()
-		assert subgraphs is not None
-		logger.info("Python Cache cleared! Continuing...")
-	
 	'''
 	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
 	█▀▀ █▀▄ ██▄ █▄▀ █ █▄▄ ░█░ █ █▄█ █░▀█
 	'''
-	subgraphs_prediction = sc.parallelize(subgraphs)
+	lines = sc.textFile(args.get_hdfs_data_path()).cache()
+	total_lines = lines.count()
+	partitions = math.ceil(float(total_lines)/float(args.batch_size))
+	prediction_data = lines.map(lambda line: read_line(line)) \
+							# extract enclosing subgraph
+							.map(lambda pair: link2subgraph(pair, args.hop, A)) \
+							# batch data
+							.partitionBy(partitions) \
+							.glom() \
+							.map(lambda p: transform_to_list(p)) \
+							# perform predictions
+							.map(lambda graph: apply_network(args.dataset, graph))
 
-	# perform prediction:
-	predictions = subgraphs_prediction.map(lambda graph: apply_network(args.dataset, graph))
-
-	# extract results with .collect() method:
 	start = time.time()
-	results = predictions.collect()
+	# trigger execution by calling an action
+	results = prediction_data.collect()
 	end = time.time()
-	logger.info("Prediction on subgraphs took " + str(end-start) + " seconds.")
 
-	save_prediction_results(results, end-start, whole_extraction_time, args)	
+	logger.info(f"Prediction completed in {str(end-start)} seconds...")
 
-	logger.info("Results calculation complete!")
-
+	logger.info("Saving results...")
+	save_prediction_results(results, end-start, args)
+	logger.info(f"Results saved under: {args.get_hdfs_folder_path}")
 
 if __name__ == "__main__":
 	args = sys.argv

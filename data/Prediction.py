@@ -48,7 +48,7 @@ def transform_to_pair_subgraph(p, subgraph):
 
 
 def transform_to_list(l):
-	pairs, subgraphs = map(list, zip(*p))
+	pairs, subgraphs = map(list, zip(*l))
 	batch_poses = [[], []]
 	for pair in pairs:
 		batch_poses[0].append(pair[0])
