@@ -73,6 +73,16 @@ class application_args:
 		folder += "links-"+str(self.links)
 		return folder
 
+	def get_hdfs_folder_path(self) -> str:
+		return f"hdfs://{self.hdfs_host}:{self.hdfs_port}/{self.get_folder_results_path}"
+
+	def get_number_of_files(self) -> int:
+		hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
+		contents = hdfs.list_dir(self.results_path)['FileStatuses']['FileStatus']
+		filtered = filter(lambda c: c['pathSuffix'] == self.get_folder_results_name, contents)
+		return int(filtered[0]['childrenNum'])
+
+
 '''
 	saves given subgraphs (pickled GNNGraphs and pairs lists) and extraction times
 	locally (inside of pod/container) for further extraction. 
@@ -128,6 +138,12 @@ def save_extraction_time(time, args: application_args):
 	file = os.path.join(path, "whole_extraction_time")
 	hdfs.create_file(file, str(time), overwrite=True)
 
+def save_prediction_time(time, args: application_args):
+	path = args.get_folder_results_path()
+	hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
+	file = os.path.join(path, "whole_prediction_time")
+	hdfs.create_file(file, str(time), overwrite=True)
+
 def save_extracted_subgraph(elements, args: application_args):
 	pair, subgraph, _ = elements
 	path = args.get_folder_results_path()
@@ -157,17 +173,6 @@ def save_prediction_results(results, time, whole_extraction_time, args: applicat
 	file = os.path.join(path, "resulting_prediction_time")
 	hdfs.create_file(file, str(whole_extraction_time))
 	file = os.path.join(path, "resulting_extraction_time")
-	hdfs.create_file(file, str(time))
-
-def save_prediction_results_single(time, args: application_args):
-	# get hdfs path
-	single_args = args.copy()
-	single_args.number_of_executors = 1
-	# get hdfs path
-	path = args.get_folder_results_path()
-	# save results on hdfs
-	hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
-	file = os.path.join(path, "resulting_prediction_time")
 	hdfs.create_file(file, str(time))
 
 '''
