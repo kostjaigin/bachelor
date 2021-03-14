@@ -31,7 +31,7 @@ class application_args:
 	number_of_db_cores: int = 6 # only for results logging
 	# location of persistent volume (without leading /)
 	results_path: str = "checkpoints/linkprediction/data"
-	data_path: str = "checkpoints/linkprediction/data/testdata.txt"
+	data_path: str = "checkpoints/linkprediction/data/USAir_1000.txt"
 	hdfs_host: str = '130.149.249.25'
 	hdfs_port: str = '50070'
 
@@ -60,7 +60,7 @@ class application_args:
 		return path
 
 	def get_folder_results_name(self) -> str:
-		dataname = os.path.basename(self.data_path)
+		dataname = os.path.basename(self.data_path).replace(".txt", "")
 		folder = self.dataset+"_"
 		folder += "exec-"+str(self.number_of_executors)+"_"
 		folder += "cores-"+str(self.number_of_db_cores)+"_"
@@ -73,13 +73,7 @@ class application_args:
 		return f"hdfs://{self.hdfs_host}:{self.hdfs_port}/{self.data_path}"
 
 	def get_hdfs_folder_path(self) -> str:
-		return f"hdfs://{self.hdfs_host}:{self.hdfs_port}/{self.get_folder_results_path}"
-
-	def get_number_of_files(self) -> int:
-		hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
-		contents = hdfs.list_dir(self.results_path)['FileStatuses']['FileStatus']
-		filtered = filter(lambda c: c['pathSuffix'] == self.get_folder_results_name, contents)
-		return int(filtered[0]['childrenNum'])
+		return f"hdfs://{self.hdfs_host}:{self.hdfs_port}/{self.get_folder_results_path()}"
 
 def save_extraction_time(time, args: application_args):
 	path = args.get_folder_results_path()

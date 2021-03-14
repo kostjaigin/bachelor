@@ -19,7 +19,7 @@ from pytorch_DGCNN.predictor import *
 from pytorch_DGCNN.util import GNNGraph
 from pytorch_DGCNN.Logger import getlogger
 from utils_app import application_args, parse_args, print_usage
-from utils_app import save_prediction_results
+from utils_app import save_prediction_results, save_extraction_time, save_prediction_time
 from utils_extraction import *
 
 import pickle as pkl
@@ -109,20 +109,29 @@ def main(args):
 	partitions = math.ceil(float(lines)/float(args.batch_size))
 	prediction_data = sc.textFile(args.get_hdfs_data_path(), minPartitions=partitions) \
 						.map(lambda line: read_line(line)) \
-						.map(lambda pair: link2subgraph(pair, args.hop, A)) \
-						.glom() \
-						.map(lambda p: transform_to_list(p)) \
-						.map(lambda graph: apply_network(args.dataset, graph))
+						.map(lambda pair: link2subgraph(pair, args.hop, A)).cache()
 
+	# extraction only
+	start = time.time()
+	prediction_data.count() # trigger execution
+	end = time.time()
+	extraction_time = end-start
+	logger.info(f"Extraction completed in {str(extraction_time)} seconds...")
+
+	prediction_data = prediction_data.glom().map(lambda p: transform_to_list(p)).cache()
+	prediction_data.count()
+
+	prediction_data = prediction_data.map(lambda graph: apply_network(args.dataset, graph))
 	start = time.time()
 	# trigger execution by calling an action
-	results = prediction_data.collect()
+	results = prediction_data.count()
 	end = time.time()
-
-	logger.info(f"Prediction completed in {str(end-start)} seconds...")
+	prediction_time = end-start
+	logger.info(f"Prediction completed in {str(prediction_time)} seconds...")
 
 	logger.info("Saving results...")
-	save_prediction_results(results, end-start, args)
+	save_extraction_time(extraction_time, args)
+	save_prediction_time(prediction_time, args)
 	logger.info(f"Results saved under: {args.get_hdfs_folder_path()}")
 
 if __name__ == "__main__":
