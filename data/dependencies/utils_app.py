@@ -34,6 +34,7 @@ class application_args:
 	data_path: str = "checkpoints/linkprediction/data/USAir_1000.txt"
 	hdfs_host: str = '130.149.249.25'
 	hdfs_port: str = '50070'
+	hdfs_read: bool = False
 
 	def set_attr(self, attr, value: str):
 		assert hasattr(self, attr)
