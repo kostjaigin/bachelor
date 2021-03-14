@@ -96,6 +96,11 @@ def main(args):
 		assert os.path.exists(build_path)
 		sc.addFile(build_path)
 
+	if not args.hdfs_read:
+		testfile = os.path.join(datafolder, "prediction_data", f"{args.dataset}_{str(args.links)}.txt")
+		assert os.path.exists(testfile)
+		sc.addFile(testfile)
+
 	datafile = os.path.join(datafolder, f'prediction_data/{args.dataset}.mat')
 	assert os.path.exists(datafile)
 	A = sio.loadmat(datafile)['net'] # graph
@@ -105,9 +110,10 @@ def main(args):
 	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
 	█▀▀ █▀▄ ██▄ █▄▀ █ █▄▄ ░█░ █ █▄█ █░▀█
 	'''
-	lines = args.links if args.links > 0 else sc.textFile(args.get_hdfs_data_path()).count()
+	testfile = args.get_hdfs_data_path() if args.hdfs_read else testfile
+	lines = args.links if args.links > 0 else sc.textFile(testfile).count()
 	partitions = math.ceil(float(lines)/float(args.batch_size))
-	prediction_data = sc.textFile(args.get_hdfs_data_path(), minPartitions=partitions) \
+	prediction_data = sc.textFile(testfile, minPartitions=partitions) \
 						.map(lambda line: read_line(line)) \
 						.map(lambda pair: link2subgraph(pair, args.hop, A)) \
 						.glom() \
