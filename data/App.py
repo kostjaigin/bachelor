@@ -123,7 +123,7 @@ def main(args):
 
 	logger.info("Saving results...")
 	save_prediction_results(results, end-start, args)
-	logger.info(f"Results saved under: {args.get_hdfs_folder_path}")
+	logger.info(f"Results saved under: {args.get_hdfs_folder_path()}")
 
 if __name__ == "__main__":
 	args = sys.argv

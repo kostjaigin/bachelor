@@ -10,7 +10,6 @@ import sys
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession
 from pyspark import SparkFiles # access submited files
-from py2neo import Graph
 
 datafolder = "/opt/spark/data"
 
@@ -20,11 +19,10 @@ from pytorch_DGCNN.predictor import *
 from pytorch_DGCNN.util import GNNGraph
 from pytorch_DGCNN.Logger import getlogger
 from utils_app import application_args, parse_args, print_usage
-from utils_app import save_prediction_results, save_prediction_time
+from utils_app import save_prediction_results, save_extraction_time, save_prediction_time
 from utils_extraction import *
 
 import pickle as pkl
-from io import BytesIO
 import numpy as np
 import time
 import scipy.io as sio
@@ -38,16 +36,13 @@ def apply_network(dataset:str, serialized):
 	predictor = Predictor(hyperparams_route, model_route)
 	return predictor.predict(serialized)
 
-def transform_to_pair_subgraph(p, subgraph):
-	file_base = os.path.basename(p).split('_')
-	src = int(file_base[1])
-	dst = int(file_base[2])
-	graph = pkl.load(BytesIO(subgraph))
-	return ((src, dst), graph)
-
+def read_line(line) -> tuple:
+	pair = line.strip().split(" ")
+	src, dst = int(pair[0]), int(pair[1])
+	return (src, dst)
 
 def transform_to_list(l):
-	pairs, subgraphs = map(list, zip(*l))
+	pairs, subgraphs, _ = map(list, zip(*l))
 	batch_poses = [[], []]
 	for pair in pairs:
 		batch_poses[0].append(pair[0])
@@ -64,11 +59,8 @@ def main(args):
 			.appName("UginDGCNN")\
 			.getOrCreate()
 	sc = spark.sparkContext
-	spark.catalog.clearCache()
 
 	logger = getlogger('Node '+str(os.getpid()))
-	logger.info("Spark Context established, going though app logic...")
-
 	logger.info("Application params:\n" + args.print_attributes())
 
 	'''
@@ -104,38 +96,43 @@ def main(args):
 		assert os.path.exists(build_path)
 		sc.addFile(build_path)
 
+	datafile = os.path.join(datafolder, f'prediction_data/{args.dataset}.mat')
+	assert os.path.exists(datafile)
+	A = sio.loadmat(datafile)['net'] # graph
 	logger.info("Build paths attached...")
-
-	# get as many graphs as number of links
-	links = args.links # for 5k, 10k, 25k etc
-	args.links = 50000 # to take files from corresponding 50k folder
-	logger.info(f"Target folder for hdfs: {args.get_folder_results_name_old()}")
-	number_of_files = args.get_number_of_files()
-	fraction = float(links)/float(number_of_files) # how many percent to sample
-	partitions = math.ceil(float(number_of_files)*fraction/float(args.batch_size)) # how many partitions we need
-	folderpath = args.get_hdfs_folder_path()
-
-	prediction_data = sc.binaryFiles(folderpath) \
-						.sample(withReplacement=False, fraction=fraction, seed=None) \
-						.reduceByKey(lambda p,subgraph: transform_to_pair_subgraph(p, subgraph)) \
-						.repartition(partitions) \
-						.glom() \
-						.map(lambda p: transform_to_list(p)) \
-						.cache() # cache to avoid recalculation
-	
-	data = prediction_data.count() # perform an action to trigger calculation
-	logger.info("Data calculated and cached...")
 
 	'''
 	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
 	█▀▀ █▀▄ ██▄ █▄▀ █ █▄▄ ░█░ █ █▄█ █░▀█
 	'''
-	predictions = prediction_data.map(lambda graph: apply_network(args.dataset, graph))
+	lines = args.links if args.links > 0 else sc.textFile(args.get_hdfs_data_path()).count()
+	partitions = math.ceil(float(lines)/float(args.batch_size))
+	prediction_data = sc.textFile(args.get_hdfs_data_path(), minPartitions=partitions) \
+						.map(lambda line: read_line(line)) \
+						.map(lambda pair: link2subgraph(pair, args.hop, A)).cache()
+
+	# extraction only
 	start = time.time()
-	results = predictions.count()
+	prediction_data.count() # trigger execution
 	end = time.time()
-	logger.info("Prediction complete, saving prediction time...")
-	save_prediction_time(end-start, args)
+	extraction_time = end-start
+	logger.info(f"Extraction completed in {str(extraction_time)} seconds...")
+
+	prediction_data = prediction_data.glom().map(lambda p: transform_to_list(p)).cache()
+	prediction_data.count()
+
+	prediction_data = prediction_data.map(lambda graph: apply_network(args.dataset, graph))
+	start = time.time()
+	# trigger execution by calling an action
+	results = prediction_data.count()
+	end = time.time()
+	prediction_time = end-start
+	logger.info(f"Prediction completed in {str(prediction_time)} seconds...")
+
+	logger.info("Saving results...")
+	save_extraction_time(extraction_time, args)
+	save_prediction_time(prediction_time, args)
+	logger.info(f"Results saved under: {args.get_hdfs_folder_path()}")
 
 if __name__ == "__main__":
 	args = sys.argv
@@ -145,3 +142,6 @@ if __name__ == "__main__":
 	args = parse_args(args)
 	# execute 
 	main(args)
+
+
+	
