@@ -20,8 +20,7 @@ from pytorch_DGCNN.predictor import *
 from pytorch_DGCNN.util import GNNGraph
 from pytorch_DGCNN.Logger import getlogger
 from utils_app import application_args, parse_args, print_usage
-from utils_app import save_subgraphs_times_batches, save_subgraphs_times, save_prediction_results
-from utils_app import get_prediction_data, save_extraction_time, save_prediction_time
+from utils_app import save_prediction_results, save_prediction_time
 from utils_extraction import *
 
 import pickle as pkl
@@ -108,7 +107,7 @@ def main(args):
 	logger.info("Build paths attached...")
 
 	# get as many graphs as number of links
-	links = args.links
+	links = args.links # for 5k, 10k, 25k etc
 	args.links = 50000 # to take files from corresponding 50k folder
 	number_of_files = args.get_number_of_files()
 	fraction = links/number_of_files # how many percent to sample
