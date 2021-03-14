@@ -109,13 +109,14 @@ def main(args):
 	# get as many graphs as number of links
 	links = args.links # for 5k, 10k, 25k etc
 	args.links = 50000 # to take files from corresponding 50k folder
+	logger.info(f"Target folder for hdfs: {args.get_folder_results_name_old()}")
 	number_of_files = args.get_number_of_files()
-	fraction = links/number_of_files # how many percent to sample
+	fraction = float(links)/float(number_of_files) # how many percent to sample
 	partitions = math.ceil(float(number_of_files)*fraction/float(args.batch_size)) # how many partitions we need
 	folderpath = args.get_hdfs_folder_path()
 
 	prediction_data = sc.binaryFiles(folderpath) \
-						.sample(fraction) \
+						.sample(withReplacement=False, fraction=fraction, seed=None) \
 						.reduceByKey(lambda p,subgraph: transform_to_pair_subgraph(p, subgraph)) \
 						.repartition(partitions) \
 						.glom() \

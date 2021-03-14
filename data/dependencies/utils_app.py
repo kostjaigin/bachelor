@@ -60,7 +60,7 @@ class application_args:
 		return path
 
 	def get_folder_results_name(self) -> str:
-		dataname = os.path.basename(self.data_path)
+		dataname = os.path.basename(self.data_path).replace(".txt", "")
 		folder = self.dataset+"_"
 		folder += "exec-"+str(self.number_of_executors)+"_"
 		folder += "cores-"+str(self.number_of_db_cores)+"_"
@@ -69,16 +69,25 @@ class application_args:
 		folder += dataname
 		return folder
 
+	def get_folder_results_name_old(self) -> str:
+		folder = self.dataset+"_"+"exec-12_cores-6_db-False_hop-2_links-50000"
+		return folder
+
+	def get_folder_results_path_old(self) -> str:
+		foldername = self.get_folder_results_name_old()
+		path = os.path.join(self.results_path, foldername)
+		return path
+
 	def get_hdfs_data_path(self) -> str:
 		return f"hdfs://{self.hdfs_host}:{self.hdfs_port}/{self.data_path}"
 
 	def get_hdfs_folder_path(self) -> str:
-		return f"hdfs://{self.hdfs_host}:{self.hdfs_port}/{self.get_folder_results_path}"
+		return f"hdfs://{self.hdfs_host}:{self.hdfs_port}/{self.get_folder_results_path_old}"
 
 	def get_number_of_files(self) -> int:
 		hdfs = PyWebHdfsClient(host=self.hdfs_host, port=self.hdfs_port)
 		contents = hdfs.list_dir(self.results_path)['FileStatuses']['FileStatus']
-		filtered = filter(lambda c: c['pathSuffix'] == self.get_folder_results_name, contents)
+		filtered = list(filter(lambda c: c['pathSuffix'] == self.get_folder_results_name_old(), contents))
 		return int(filtered[0]['childrenNum'])
 
 def save_extraction_time(time, args: application_args):
