@@ -26,7 +26,7 @@ class application_args:
 	batch_inprior: bool = False
 	hop: int = 2
 	batch_size: int = 50
-	links: int = 100 # how many links to take
+	links: int = -1 # how many links to take
 	number_of_executors: int = 4 # only for results logging
 	number_of_db_cores: int = 6 # only for results logging
 	# location of persistent volume (without leading /)

@@ -105,18 +105,14 @@ def main(args):
 	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
 	█▀▀ █▀▄ ██▄ █▄▀ █ █▄▄ ░█░ █ █▄█ █░▀█
 	'''
-	lines = sc.textFile(args.get_hdfs_data_path()).cache()
-	total_lines = lines.count()
-	partitions = math.ceil(float(total_lines)/float(args.batch_size))
-	prediction_data = lines.map(lambda line: read_line(line)) \
-							# extract enclosing subgraph
-							.map(lambda pair: link2subgraph(pair, args.hop, A)) \
-							# batch data
-							.partitionBy(partitions) \
-							.glom() \
-							.map(lambda p: transform_to_list(p)) \
-							# perform predictions
-							.map(lambda graph: apply_network(args.dataset, graph))
+	lines = args.links if args.links > 0 else sc.textFile(args.get_hdfs_data_path()).count()
+	partitions = math.ceil(float(lines)/float(args.batch_size))
+	prediction_data = sc.textFile(args.get_hdfs_data_path(), minPartitions=partitions) \
+						.map(lambda line: read_line(line)) \
+						.map(lambda pair: link2subgraph(pair, args.hop, A)) \
+						.glom() \
+						.map(lambda p: transform_to_list(p)) \
+						.map(lambda graph: apply_network(args.dataset, graph))
 
 	start = time.time()
 	# trigger execution by calling an action
