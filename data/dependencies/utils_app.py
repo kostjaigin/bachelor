@@ -76,7 +76,7 @@ class application_args:
 		return f"hdfs://{self.hdfs_host}:{self.hdfs_port}/{self.get_folder_results_path}"
 
 	def get_number_of_files(self) -> int:
-		hdfs = PyWebHdfsClient(host=args.hdfs_host, port=args.hdfs_port)
+		hdfs = PyWebHdfsClient(host=self.hdfs_host, port=self.hdfs_port)
 		contents = hdfs.list_dir(self.results_path)['FileStatuses']['FileStatus']
 		filtered = filter(lambda c: c['pathSuffix'] == self.get_folder_results_name, contents)
 		return int(filtered[0]['childrenNum'])
