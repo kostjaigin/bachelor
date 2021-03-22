@@ -21,7 +21,10 @@ def save_dir(path, folder, hdfs):
 		if c['type'] == 'DIRECTORY':
 			save_dir(os.path.join(path, name), os.path.join(folder, name), hdfs)
 		else:
-			save_file(os.path.join(path, name), os.path.join(folder, name), hdfs)
+                        try:
+			    save_file(os.path.join(path, name), os.path.join(folder, name), hdfs)
+                        except:
+                            print("Wasn't able to save file: " + os.path.join(folder, name)) 
 
 # path: hdfs path, filepath: to what folder+name to save locally
 # todo probably wont work for bytes/won't be representable correctly

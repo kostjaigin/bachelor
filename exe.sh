@@ -5,11 +5,11 @@ $SPARK_HOME/bin/spark-submit \
 --conf spark.kubernetes.memoryOverheadFactor=0.1 \
 --conf spark.executor.memory=4g \
 --conf spark.executor.cores=4 \
---conf spark.driver.memory=8g \
+--conf spark.driver.memory=6g \
 --conf spark.driver.cores=4 \
 --conf spark.kubernetes.namespace=konstantin \
 --conf spark.kubernetes.authenticate.driver.serviceAccountName=konstantin \
---conf spark.kubernetes.container.image=docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.1.12 \
+--conf spark.kubernetes.container.image=docker.io/kostjaigin/spark-py:v3.0.1-Ugin_0.1.147 \
 --files "local:///opt/spark/data/build/dll/libgnn.d" \
 --files "local:///opt/spark/data/build/dll/libgnn.so" \
 --files "local:///opt/spark/data/build/lib/config.d" \
