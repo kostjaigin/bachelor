@@ -1,5 +1,7 @@
 # Using Graph Neural Networks for Distributed Link Prediction
 
+My bachelor thesis work. **Apache Spark, Python, Kubernetes for deployment, PyTorch for Neural Networks**. I have my deadline on 29 April, I will post a more detailed description of the thesis until then. 
+
 Utils folder contains help functionality and environment setup files required to repeat the experiments from my bachelor thesis. 
 
 ## Environment setup
@@ -80,7 +82,3 @@ $SPARK_HOME/bin/spark-submit \
   --py-files "local:///opt/spark/data/dependencies.zip" \
   local:///opt/spark/data/App.py
 ```
-
-#### Using [Spark K8S Operator](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator)
-
-1. ```kubectl apply -f App.yaml``` on initial start
