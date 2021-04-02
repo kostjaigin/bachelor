@@ -122,7 +122,6 @@ def main(args):
 	end = time.time()
 
 	logger.info(f"Prediction completed in {str(end-start)} seconds...")
-
 	logger.info("Saving results...")
 	save_prediction_results(results, end-start, args)
 	logger.info(f"Results saved under: {args.get_hdfs_folder_path()}")

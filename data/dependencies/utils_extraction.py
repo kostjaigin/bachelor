@@ -22,6 +22,7 @@ from pytorch_DGCNN.predictor import *
 from pytorch_DGCNN.util import GNNGraph
 from pytorch_DGCNN.Logger import getlogger
 from pyspark import SparkFiles # access submited files
+from graphframes import *
 
 '''
 	returns: pair tuple, GNNGraph subgraph, extraction time
@@ -86,6 +87,61 @@ def link2subgraph_adj(pair, h, A):
 		g.remove_edge(0, 1)
 
 	return GNNGraph(g, 1, labels.tolist())
+
+# works only with hopes of 1 and 2
+def link2subgraph_frames(pair, graphframe, hop):
+	src = str(pair[0])
+	dst = str(pair[1])
+	if hop == 1:
+		motif = "(a)-[e]->(b)"
+		fltr = f"a.id={src} or a.id={dst} or b.id={src} or b.id={dst}"
+		subgraph_nodes = graphframe.find(motif).filter(fltr)
+		subgraph_nodes = subgraph_nodes.select("a").union(subgraph_nodes.select("b")).distinct()
+	else:
+		subgraph_nodes = find_nodes_2hop(graphframe, src, dst)
+	collected_nodes = subgraph_nodes.rdd.map(lambda r: r[0][0]).collect()
+	src, dst = int(src), int(dst)
+	collected_nodes.remove(src)
+	collected_nodes.remove(dst)
+	collected_nodes = [src, dst] + collected_nodes
+	# given labeling function functions with indeces, not ids
+	nodes_idx = list(range(0, len(collected_nodes)))
+	# edges need to be constructed between known indeces
+	nodes_map = dict(zip(collected_nodes, nodes_idx)) # to access nodes index w. id
+	edgesframe = graphframe.edges
+	edges = edgesframe \
+			.filter(edgesframe.src.isin(collected_nodes) & edgesframe.dst.isin(collected_nodes)) \
+			.rdd.map(lambda e: (nodes_map[e[0]], nodes_map[e[1]])) \
+			.collect()
+	# construct networkx graph from given nodes and edges:
+	g = nx.Graph()
+	g.add_nodes_from(nodes_idx)
+	g.add_edges_from(edges)
+	# construct sparse adjacency matrix for use of SEAL functions
+	subgraph = nx.to_scipy_sparse_matrix(g, weight=None, format='csc', dtype=np.float64)
+	# labels nodes in subgraphs
+	labels = node_label(subgraph).tolist()
+	# features TODO
+	features = None
+	g_label = 1
+	# remove edge between target nodes
+	if g.has_edge(0, 1):
+		g.remove_edge(0, 1)
+	gnn_graph = GNNGraph(g, g_label, labels)
+	return (gnn_graph, (src, dst))
+
+def find_nodes_2hop(graphframe, src, dst):
+	fltr = f'a.id={src} or b.id={src} or c.id={src} or a.id={dst} or b.id={dst} or c.id={dst}'
+	subgraph_nodes1 = find_subnodes_w_motif(graphframe, "(a)-[e1]->(b);(b)-[e2]->(c)", fltr)
+	subgraph_nodes2 = find_subnodes_w_motif(graphframe, "(a)-[e1]->(b);(c)-[e2]->(b)", fltr)
+	subgraph_nodes3 = find_subnodes_w_motif(graphframe, "(b)-[e1]->(a);(c)-[e2]->(b)", fltr)
+	subgraph_nodes4 = find_subnodes_w_motif(graphframe, "(b)-[e1]->(a);(b)-[e2]->(c)", fltr)
+	return subgraph_nodes1.union(subgraph_nodes2).union(subgraph_nodes3).union(subgraph_nodes4).distinct()
+
+def find_subnodes_w_motif(graphframe, motif, fltr):
+	subgraph_nodes = graphframe.find(motif).filter(fltr)
+	subgraph_nodes = subgraph_nodes.select("a").union(subgraph_nodes.select("b")).union(subgraph_nodes.select("c")).distinct()
+	return subgraph_nodes
 
 def links2subgraphs_db(pairs, hop):
 	graph = Graph(service_ip)

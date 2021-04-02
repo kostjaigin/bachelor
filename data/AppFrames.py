@@ -19,7 +19,7 @@ from pytorch_DGCNN.predictor import *
 from pytorch_DGCNN.util import GNNGraph
 from pytorch_DGCNN.Logger import getlogger
 from utils_app import application_args, parse_args, print_usage
-from utils_app import save_prediction_results
+from utils_app import save_prediction_results, get_test_data
 from utils_extraction import *
 
 import pickle as pkl
@@ -27,10 +27,7 @@ import numpy as np
 import time
 import scipy.io as sio
 import math
-from py2neo import Graph
-service_ip = "bolt://neo4j-helm-neo4j:7687"
 from graphframes import *
-from graphframes import GraphFrame
 
 import gc
 
@@ -46,7 +43,7 @@ def read_line(line) -> tuple:
 	return (src, dst)
 
 def transform_to_list(l):
-	pairs, subgraphs, _ = map(list, zip(*l))
+	subgraphs, pairs = map(list, zip(*l))
 	batch_poses = [[], []]
 	for pair in pairs:
 		batch_poses[0].append(pair[0])
@@ -66,6 +63,7 @@ def main(args):
 
 	logger = getlogger('Node '+str(os.getpid()))
 	logger.info("Application params:\n" + args.print_attributes())
+	assert args.hop == 1 or args.hop == 2
 
 	'''
 	█▀▄ █▀▀ █▀█ █▀▀ █▄░█ █▀▄ █▀▀ █▄░█ █▀▀ █ █▀▀ █▀
@@ -106,38 +104,36 @@ def main(args):
 		sc.addFile(testfile)
 
 	neo4jgraph = Graph(service_ip)
-	nodesframe = spark.createDataFrame(neo4jgraph.run("match (n) return n.id as id;").to_data_frame())
-	edgesframe = spark.createDataFrame(neo4jgraph.run("match (n)-[e:CONNECTION]->(m) return n.id as src, m.id as dst").to_data_frame())
-	graphframe = GraphFrame(nodesframe, edgesframe)
-	numbernodes = graphframe.vertices.count()
-	numberedges = graphframe.edges.count()
-	logger.info(f"Nodes number: {str(numbernodes)}")
-	logger.info(f"Edges number: {str(numberedges)}")
-	return
+	nds = neo4jgraph.run("match (n) return n.id as id;").to_data_frame()
+	edgs = neo4jgraph.run("match (n)-[e:CONNECTION]->(m) return n.id as src, m.id as dst").to_data_frame()
+	nodesframe = spark.createDataFrame(nds)
+	edgesframe = spark.createDataFrame(edgs)
+	graphframe = GraphFrame(nodesframe, edgesframe).cache()
 
 	'''
 	█▀█ █▀█ █▀▀ █▀▄ █ █▀▀ ▀█▀ █ █▀█ █▄░█
 	█▀▀ █▀▄ ██▄ █▄▀ █ █▄▄ ░█░ █ █▄█ █░▀█
 	'''
-	testfile = args.get_hdfs_data_path() if args.hdfs_read else testfile
-	lines = args.links if args.links > 0 else sc.textFile(testfile).count()
-	partitions = math.ceil(float(lines)/float(args.batch_size))
-	prediction_data = sc.textFile(testfile, minPartitions=partitions) \
-						.map(lambda line: read_line(line)) \
-						.map(lambda pair: link2subgraph(pair, args.hop, A)) \
-						.glom() \
-						.map(lambda p: transform_to_list(p)) \
-						.map(lambda graph: apply_network(args.dataset, graph))
-
+	links = get_test_data(testfile)
 	start = time.time()
-	# trigger execution by calling an action
-	results = prediction_data.collect()
+	batch_graph = []
+	list_of_batches = []
+	for i, link in enumerate(links):
+		# extract enclosing subgraph
+		subgraph = link2subgraph_frames(link, graphframe, args.hop)
+		# batch it to the batched list
+		batch_graph.append(subgraph)
+		if len(batch_graph) == args.batch_size or i == (len(links)-1):
+			list_of_batches.append(batch_graph)
+			batch_graph = []
+	# Apply network (without spark)
+	transformed_list = map(lambda l: transform_to_list(l), list_of_batches)
+	predictions = map(lambda p: apply_network(args.dataset, p), transformed_list)
 	end = time.time()
-
 	logger.info(f"Prediction completed in {str(end-start)} seconds...")
-
+	
 	logger.info("Saving results...")
-	save_prediction_results(results, end-start, args)
+	save_prediction_results(predictions, end-start, args)
 	logger.info(f"Results saved under: {args.get_hdfs_folder_path()}")
 
 if __name__ == "__main__":

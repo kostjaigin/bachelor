@@ -116,6 +116,14 @@ def save_prediction_results(results, time, args: application_args):
 	file = os.path.join(path, "resulting_prediction_time")
 	hdfs.create_file(file, str(time))
 
+def get_test_data(file: str) -> list:
+	pairs = []
+	with open(file, 'r') as f:
+		for line in f:
+			src, dst = tuple(line.strip().split(" "))
+			pairs.append((int(src), int(dst)))
+	return pairs
+
 '''
 	parses given list of string arguments to applicatoin_args instance
 '''
