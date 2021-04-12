@@ -117,21 +117,21 @@ def main(args):
 	links = get_test_data(testfile)
 	start = time.time()
 	batch_graph = []
-	list_of_batches = []
+	predictions = []
 	for i, link in enumerate(links):
 		# extract enclosing subgraph
 		subgraph = link2subgraph_frames(link, graphframe, args.hop)
 		# batch it to the batched list
 		batch_graph.append(subgraph)
 		if len(batch_graph) == args.batch_size or i == (len(links)-1):
-			list_of_batches.append(batch_graph)
+			# initiate prediction
+			prediction_batch = transform_to_list(batch_graph)
+			# Apply network (without spark)
+			predictions.append(apply_network(args.dataset, prediction_batch))
 			batch_graph = []
-	# Apply network (without spark)
-	transformed_list = map(lambda l: transform_to_list(l), list_of_batches)
-	predictions = map(lambda p: apply_network(args.dataset, p), transformed_list)
 	end = time.time()
-	logger.info(f"Prediction completed in {str(end-start)} seconds...")
 	
+	logger.info(f"Prediction completed in {str(end-start)} seconds...")
 	logger.info("Saving results...")
 	save_prediction_results(predictions, end-start, args)
 	logger.info(f"Results saved under: {args.get_hdfs_folder_path()}")
