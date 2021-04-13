@@ -2,7 +2,7 @@
 
 My bachelor thesis work. Hashtags: **Apache Spark, Python, Kubernetes for deployment, PyTorch for Neural Networks**.
 
-**I Here we explain:**
+**Here we explain:**
 - What is the thesis about *in short*
 - How to reproduce my experiments
 - The structure of this project
