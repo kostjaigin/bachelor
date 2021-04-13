@@ -48,8 +48,6 @@ neo4j-helm-neo4j-replica-2   1/1     Running
 9. Add (if not present) line ```dbms.security.allow_csv_import_from_file_urls=true```
 
 ### Build and execute the project
-The main application logic can be found in [data/App.py](https://github.com/kostjaigin/bachelor/blob/master/data/App.py) for the strategy AA, [data/AppDB.py](https://github.com/kostjaigin/bachelor/blob/master/data/AppDB.py) for the strategy AB, [data/AppFrames.py](https://github.com/kostjaigin/bachelor/blob/master/data/AppFrames.py) for the strategy B.
-
 Set enviromental variable *$SPARK_HOME* to the directory of this repository
 
 *If you want to build a custom image*, do ```$SPARK_HOME/bin/docker-image-tool.sh -r kostjaigin -t v3.0.1-Ugin_X.X.X -p $SPARK_HOME/kubernetes/dockerfiles/spark/bindings/python/Dockerfile build``` to build the project, where you can replace X.X.X in the image version with any version you want. My images are publicly available at my [dockerhub-profile](https://hub.docker.com/repository/docker/kostjaigin/spark-py), I recommend using the 0.2.0 version.
@@ -64,4 +62,6 @@ I conduct my experiments using the [experiments-script](https://github.com/kostj
 
 ## The structure of the project
 
+**TODO**
 The project is based on the default Apache Spark distribution version 3.0.1. Additinally we have a number of .sh and python scripts for different use cases. We save experimential results on an hdfs-cluster. 
+The main application logic can be found in [data/App.py](https://github.com/kostjaigin/bachelor/blob/master/data/App.py) for the strategy AA, [data/AppDB.py](https://github.com/kostjaigin/bachelor/blob/master/data/AppDB.py) for the strategy AB, [data/AppFrames.py](https://github.com/kostjaigin/bachelor/blob/master/data/AppFrames.py) for the strategy B.
