@@ -56,7 +56,7 @@ I conduct my experiments using the [experiments-script](https://github.com/kostj
 
 ❗️To save experiment results, you need an installed hdfs cluster with a shared data storage. Point at your hdfs-cluster with additional application parameters --hdfs_host and hdfs_port. The parameter description for the execution files is as follows:
 
-### Application parameters by custom execution
+### Application parameters
 
 **TODO**
 
