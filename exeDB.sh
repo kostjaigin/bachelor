@@ -1,5 +1,5 @@
 $SPARK_HOME/bin/spark-submit \
---master k8s://https://130.149.249.40:6443 \
+--master k8s://https://130.149.249.46:6443 \
 --deploy-mode cluster \
 --conf spark.executor.instances=$2 \
 --conf spark.kubernetes.memoryOverheadFactor=0.1 \
