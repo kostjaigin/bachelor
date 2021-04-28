@@ -56,12 +56,18 @@ I conduct my experiments using the [experiments-script](https://github.com/kostj
 
 ❗️To save experiment results, you need an installed hdfs cluster with a shared data storage. Point at your hdfs-cluster with additional application parameters --hdfs_host and hdfs_port. The parameter description for the execution files is as follows:
 
-### Application parameters
-
-**TODO**
-
 ## The structure of the project
 
 **TODO**
 The project is based on the default Apache Spark distribution version 3.0.1. Additinally we have a number of .sh and python scripts for different use cases. We save experimential results on an hdfs-cluster. 
 The main application logic can be found in [data/App.py](https://github.com/kostjaigin/bachelor/blob/master/data/App.py) for the strategy AA, [data/AppDB.py](https://github.com/kostjaigin/bachelor/blob/master/data/AppDB.py) for the strategy AB, [data/AppFrames.py](https://github.com/kostjaigin/bachelor/blob/master/data/AppFrames.py) for the strategy B.
+
+"Dependencies" folder inside of the data folder contains the dependency files, prediction data for test sets is available under the same named folder. "Results" folder contains the results of our experiments in excel and .csv formats. "Utils" folder contains a number of support python scripts. 
+
+We conducted 336 experiments in total. The execution on cluster was not performed manually. "Experiments" shell-script available in the root folder and composes submission of required application with experiment parameters. For all three strategies, it executes a call on a corresponding [Spark-Submit] (https://spark.apache.org/docs/latest/submitting-applications.html) Shell-Script:
+
+- *exe.sh* performs Spark-Submit operation for the strategy AA.
+- *exeDB.sh* performs Spark-Submit operation for the strategy AB.
+- *exeFrames.sh* performs Spark-Submit operation for the strategy B.
+
+"Experiments" script: 1) loads the required dataset into the database *if required*, 2) starts the experiment with a given configuration, 3) removes the successfully completed pods to keep the cluster cleen, 4) saves the experiments results from the HDFS-storage. 
