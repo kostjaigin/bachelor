@@ -58,7 +58,6 @@ I conduct my experiments using the [experiments-script](https://github.com/kostj
 
 ## The structure of the project
 
-**TODO**
 The project is based on the default Apache Spark distribution version 3.0.1. Additinally we have a number of .sh and python scripts for different use cases. We save experimential results on an hdfs-cluster. 
 The main application logic can be found in [data/App.py](https://github.com/kostjaigin/bachelor/blob/master/data/App.py) for the strategy AA, [data/AppDB.py](https://github.com/kostjaigin/bachelor/blob/master/data/AppDB.py) for the strategy AB, [data/AppFrames.py](https://github.com/kostjaigin/bachelor/blob/master/data/AppFrames.py) for the strategy B.
 
