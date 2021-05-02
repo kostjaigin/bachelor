@@ -55,7 +55,7 @@ Set enviromental variable *$SPARK_HOME* to the directory of this repository
 
 I conduct my experiments using the [experiments-script](https://github.com/kostjaigin/bachelor/blob/master/experiments.sh). It refers to the execution script of each strategy that consists of the pre-implemented spark-submit command in an .sh file. [Here](https://github.com/kostjaigin/bachelor/blob/master/exe.sh) is an example of the execution file for the strategy AA.
 
-❗️To save experiment results, you need an installed hdfs cluster with a shared data storage. Point at your hdfs-cluster with additional application parameters --hdfs_host and hdfs_port. The parameter description for the execution files is as follows:
+❗️To save experiment results, you need an installed hdfs cluster with a shared data storage. Point at your hdfs-cluster with additional application parameters --hdfs_host and hdfs_port. The parameter description for the execution files is as follows: TODO...
 
 ## The structure of the project
 
