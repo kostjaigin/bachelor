@@ -10,6 +10,7 @@ My bachelor thesis work. Hashtags: **Apache Spark, Python, Kubernetes for deploy
 ## Thesis in short
 
 [Thesis not in short 👀](https://github.com/kostjaigin/bachelor/blob/master/thesis.pdf)
+
 We perform link prediction using Muhan Zhang's [SEAL](https://github.com/muhanzhang/SEAL) system on a Spark cluster, deployed on a [K8S](https://kubernetes.io) cluster on university machines. The idea of the thesis is to distribute the original approach, using Apache Spark. We propose three main distribution strategies:
 
 1. **AA**: Build an RDD on test-links, distribute the original methods.
